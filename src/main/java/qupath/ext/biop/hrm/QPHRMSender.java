@@ -13,16 +13,23 @@ public interface QPHRMSender {
 
     /**
      * Copy an image from QuPath to a destination folder
-     * @param image
-     * @param destinationFolder
+     * @param overwrite
      * @return
      */
-    boolean copy(ImageServer<BufferedImage> image, String destinationFolder);
+    boolean copy(boolean overwrite);
 
     /**
-     * get the path to the HRM destination folder
+     * set the path to the HRM destination folder
      * @param root
      * @return
      */
-    String buildDestinationFolder(String root);
+    QPHRMSender buildDestinationFolder(String root);
+
+    /**
+     * set the current image server
+     *
+     * @param image
+     * @return
+     */
+    QPHRMSender setImage(ImageServer<BufferedImage> image);
 }

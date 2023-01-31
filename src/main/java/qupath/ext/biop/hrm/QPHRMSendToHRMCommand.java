@@ -1,8 +1,11 @@
 package qupath.ext.biop.hrm;
 
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
+import org.apache.commons.lang3.StringUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
@@ -17,6 +20,7 @@ import java.util.Optional;
 public class QPHRMSendToHRMCommand implements Runnable {
 
     private final QuPathGUI qupath;
+    private boolean overwriteHrmData = false;
     public QPHRMSendToHRMCommand(QuPathGUI qupath) {
         this.qupath = qupath;
     }
@@ -37,6 +41,15 @@ public class QPHRMSendToHRMCommand implements Runnable {
         String sameImageWarning = "A selected image is open in the viewer!\nAny unsaved changes will be ignored.";
         var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), images, sameImageWarning);
 
+        // add the checkbox to overwrite data on HRM
+        GridPane paneHeader = new GridPane();
+        CheckBox chkOverwrite = new CheckBox("Overwrite data on HRM");
+        chkOverwrite.setMinWidth(CheckBox.USE_PREF_SIZE);
+        chkOverwrite.setSelected(overwriteHrmData);
+        chkOverwrite.selectedProperty().addListener((v, o, n) -> overwriteHrmData = chkOverwrite.selectedProperty().get());
+        paneHeader.add(chkOverwrite,0,0);
+        ((GridPane)(listSelectionView.getTargetFooter())).add(chkOverwrite,0,3);
+
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.initOwner(qupath.getStage());
         dialog.setTitle("Select images to send to HRM");
@@ -56,8 +69,13 @@ public class QPHRMSendToHRMCommand implements Runnable {
             return;
 
         List<ProjectImageEntry<BufferedImage>> imagesToSend = new ArrayList<>(images);
-        System.out.println(imagesToSend);
 
-        boolean wasSent = QPHRMSendToHRM.send(imagesToSend);
+        boolean wasSent = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData);
+        if(wasSent)
+            Dialogs.showInfoNotification("Sending To HRM",String.format("%d %s %s successfully sent to HRM server",
+                    imagesToSend.size(),
+                    (imagesToSend.size() == 1 ? "image" : "images"),
+                    (imagesToSend.size() == 1 ? "was" : "were")));
+
     }
 }

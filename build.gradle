@@ -53,7 +53,7 @@ dependencies {
     implementation "org.openmicroscopy:omero-gateway:5.6.5"
     implementation "org.openmicroscopy:omero-model:5.6.0"
     implementation "info.picocli:picocli:4.3.2"
-    //implementation("ch.epfl.biop:qupath-extension-biop-omero:0.3.1")
+    implementation "ch.epfl.biop:qupath-extension-biop-omero:0.3.2-SNAPSHOT"
 }
 
 processResources {
