@@ -1,6 +1,5 @@
 package qupath.ext.biop.hrm;
 
-import omero.gateway.model.DataObject;
 import omero.gateway.model.DatasetData;
 import omero.gateway.model.ProjectData;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
@@ -19,6 +18,11 @@ public class QPHRMOmeroSender implements QPHRMSender {
     private OmeroRawImageServer image;
     private OmeroRawClient client;
 
+    final private int SKIPPED = 2;
+    final private int COPIED = 1;
+    final private int FAILED = 0;
+    final private int ERROR = -1;
+
     public QPHRMOmeroSender(){
 
     }
@@ -27,7 +31,7 @@ public class QPHRMOmeroSender implements QPHRMSender {
     public String getDestinationFolder() { return this.destinationFolder; }
 
     @Override
-    public boolean copy(boolean overwrite) {
+    public int copy(boolean overwrite) {
         File destinationFolderFile = new File(this.destinationFolder);
 
         // check if the destination folder exists
@@ -37,11 +41,11 @@ public class QPHRMOmeroSender implements QPHRMSender {
             String imageName = OmeroRawTools.readOmeroImage(this.client, omeroId).getName();
             if(overwrite || !(new File(this.destinationFolder + File.separator + imageName).exists()))
                 // copy image in HRM folder
-                return OmeroRawTools.downloadImage(this.client, omeroId, destinationFolderFile.toString());
-            return true;
+                return (OmeroRawTools.downloadImage(this.client, omeroId, destinationFolderFile.toString()) ? COPIED : FAILED);
+            return SKIPPED;
         } else{
             Dialogs.showErrorNotification("Copying OMERO file","Destination folder "+this.destinationFolder+" does not exists");
-            return false;
+            return ERROR;
         }
     }
 

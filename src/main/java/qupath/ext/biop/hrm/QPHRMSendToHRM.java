@@ -5,7 +5,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -16,10 +15,11 @@ import java.util.stream.Collectors;
 
 public class QPHRMSendToHRM {
 
-    public static boolean send(List<ProjectImageEntry<BufferedImage>> images, boolean overwrite){
+    public static int[] send(List<ProjectImageEntry<BufferedImage>> images, boolean overwrite){
 
         String rootFolder = "C:\\Users\\dornier\\Downloads";//"\\svraw1.epfl.ch\\ptbiop\\HRM-Share";
-        boolean allSent = true;
+        int nSentImages = 0;
+        int nSkippedImages = 0;
 
         // get image servers
         List<ImageServer<BufferedImage>> imageServers = new ArrayList<>();
@@ -42,27 +42,30 @@ public class QPHRMSendToHRM {
 
         // omero images to send
         for(ImageServer<BufferedImage> imageServer:omeroServersList) {
-            boolean hasBeenSent = new QPHRMOmeroSender()
+            int hasBeenSent = new QPHRMOmeroSender()
                        .setClient(((OmeroRawImageServer) imageServer).getClient())
                        .setImage(imageServer)
                        .buildDestinationFolder(rootFolder)
                        .copy(overwrite);
-            allSent = allSent && hasBeenSent;
+            nSentImages += hasBeenSent == 1 ? 1 : 0;
+            nSkippedImages += hasBeenSent == 2 ? 1 : 0;
+
             if(username.equals(""))
                 username = ((OmeroRawImageServer) imageServer).getClient().getLoggedInUser().getOmeName().getValue();
         }
 
         // local images to send
         for(ImageServer<BufferedImage> imageServer:localServersList) {
-            boolean hasBeenSent = new QPHRMLocalSender()
+            int hasBeenSent = new QPHRMLocalSender()
                     .setUsername(username)
                     .setImage(imageServer)
                     .buildDestinationFolder(rootFolder)
                     .copy(overwrite);
-            allSent = allSent && hasBeenSent;
+            nSentImages += hasBeenSent == 1 ? 1 : 0;
+            nSkippedImages += hasBeenSent == 2 ? 1 : 0;
         }
 
-        return allSent;
+        return (new int[]{nSentImages, nSkippedImages});
     }
 
 

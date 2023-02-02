@@ -1,12 +1,6 @@
 package qupath.ext.biop.hrm;
 
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
 import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 
@@ -19,6 +13,9 @@ public class QPHRMLocalSender implements QPHRMSender {
     private String destinationFolder = "";
     private ImageServer<BufferedImage> image;
     private String username = "";
+    final private int SKIPPED = 2;
+    final private int COPIED = 1;
+    final private int ERROR = -1;
 
     public QPHRMLocalSender(){
 
@@ -30,7 +27,7 @@ public class QPHRMLocalSender implements QPHRMSender {
     }
 
     @Override
-    public boolean copy(boolean overwrite) {
+    public int copy(boolean overwrite) {
         File destinationFolderPath = new File(this.destinationFolder);
 
         // check if the destination folder exists
@@ -40,17 +37,19 @@ public class QPHRMLocalSender implements QPHRMSender {
             try {
                 // check if the image already exists on HRM
                 File sourceImage = new File(uri);
-                if(overwrite || !(new File(this.destinationFolder + File.separator + sourceImage.getName()).exists()))
+                if(overwrite || !(new File(this.destinationFolder + File.separator + sourceImage.getName()).exists())) {
                     // copy the image into HRM folder
                     FileUtils.copyFileToDirectory(sourceImage, destinationFolderPath);
-                return true;
+                    return COPIED;
+                }
+                return SKIPPED;
             } catch (IOException e) {
                 Dialogs.showErrorNotification("Copy File to HRM","Cannot copy "+uri+" to "+this.destinationFolder);
-                return false;
+                return ERROR;
             }
         } else{
             Dialogs.showErrorNotification("Copying local file","Destination folder "+this.destinationFolder+" does not exists");
-            return false;
+            return ERROR;
         }
     }
 

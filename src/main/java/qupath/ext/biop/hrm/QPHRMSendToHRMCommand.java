@@ -5,7 +5,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
-import org.apache.commons.lang3.StringUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
@@ -70,12 +69,16 @@ public class QPHRMSendToHRMCommand implements Runnable {
 
         List<ProjectImageEntry<BufferedImage>> imagesToSend = new ArrayList<>(images);
 
-        boolean wasSent = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData);
-        if(wasSent)
-            Dialogs.showInfoNotification("Sending To HRM",String.format("%d %s %s successfully sent to HRM server",
-                    imagesToSend.size(),
-                    (imagesToSend.size() == 1 ? "image" : "images"),
-                    (imagesToSend.size() == 1 ? "was" : "were")));
+        int[] sentImages = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData);
+
+        Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
+                sentImages[0],
+                imagesToSend.size(),
+                (sentImages[0] == 1 ? "image" : "images"),
+                (sentImages[0] == 1 ? "was" : "were"),
+                sentImages[1],
+                imagesToSend.size(),
+                (sentImages[1] == 1 ? "was" : "were")));
 
     }
 }

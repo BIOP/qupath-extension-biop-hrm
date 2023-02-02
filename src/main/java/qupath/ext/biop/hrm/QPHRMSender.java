@@ -1,7 +1,6 @@
 package qupath.ext.biop.hrm;
 
 import qupath.lib.images.servers.ImageServer;
-
 import java.awt.image.BufferedImage;
 
 public interface QPHRMSender {
@@ -16,7 +15,7 @@ public interface QPHRMSender {
      * @param overwrite
      * @return
      */
-    boolean copy(boolean overwrite);
+    int copy(boolean overwrite);
 
     /**
      * set the path to the HRM destination folder
