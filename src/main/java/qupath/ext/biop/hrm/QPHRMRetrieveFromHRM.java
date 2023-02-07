@@ -3,16 +3,33 @@ package qupath.ext.biop.hrm;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClients;
+import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectIO;
+import qupath.lib.projects.ProjectImageEntry;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,8 +37,9 @@ import java.util.stream.Collectors;
 
 public class QPHRMRetrieveFromHRM {
 
+    private final static Logger logger = LoggerFactory.getLogger(QPHRMRetrieveFromHRM.class);
 
-    public static boolean retrieve(String root, String owner){
+    public static boolean retrieve(QuPathGUI qupath, String root, String owner){
         // list all files retrieve in QuPath
         Map<String, String> imageTypeMap = listFileToUpload(root, owner);
 
@@ -48,7 +66,8 @@ public class QPHRMRetrieveFromHRM {
                             .setImage(entry.getKey())
                             .setClient(client)
                             .buildTarget()
-                            .sendBack(metadata);
+                            .sendBack(metadata)
+                            .toQuPath(qupath);
                     break;
                 case "local":
                     ;
@@ -57,6 +76,88 @@ public class QPHRMRetrieveFromHRM {
             }
         }
         return true;
+    }
+
+
+    public static void toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI) throws IOException {
+        List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
+        Project<BufferedImage> project = qupath.getProject();
+
+        URI uri = null;
+        try {
+            uri = GeneralTools.toURI(imageURI);
+            var tempProject = ProjectIO.loadProject(uri, BufferedImage.class);
+            projectImages = new ArrayList<>(tempProject.getImageList());
+        } catch (Exception e) {
+            logger.warn("Unable to add images from {} ({})", imageURI, e.getLocalizedMessage());
+        }
+
+        // If we have projects, try adding images from these first
+        if (!projectImages.isEmpty()) {
+            for (var temp : projectImages) {
+                try {
+                    project.addDuplicate(temp, true);
+                } catch (Exception e) {
+                    logger.error("Unable to copy images to the current project");
+                }
+            }
+        }
+
+        // define the builder
+        ImageServerBuilder.UriImageSupport<BufferedImage> support;
+        if(imageServerBuilder == null)
+            support = ImageServers.getImageSupport(uri, "");
+        else
+            support = ImageServers.getImageSupport(imageServerBuilder, uri, "");
+
+        if (support != null){
+            List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = support.getBuilders();
+
+            // Add everything in order first
+            List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
+            for (var builder : builders) {
+                entries.add(project.addImage(builder));
+            }
+
+            // Initialize (the slow bit)
+            for (var entry : entries) {
+                // initialize entry
+                try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()){
+                    // Set the image name
+                    String name = ServerTools.getDisplayableImageName(server);
+                    entry.setImageName(name);
+
+                    // Pyramidalize this if we need to
+                    ImageServer<BufferedImage> server2 = server;
+                    int minPyramidDimension = PathPrefs.minPyramidDimensionProperty().get();
+                    if (server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > minPyramidDimension) {
+                        var serverTemp = ImageServers.pyramidalize(server);
+                        if (serverTemp.nResolutions() > 1) {
+                            logger.debug("Auto-generating image pyramid for " + name);
+                            server2 = serverTemp;
+                        } else
+                            serverTemp.close();
+                    }
+
+                    if (server != server2)
+                        server2.close();
+
+                } catch (Exception e) {
+                    logger.warn("Exception adding " + entry, e);
+                }
+
+                // add metadata
+                entry.putMetadataValue("test","1");
+            }
+
+            // refresh the project
+            try {
+                project.syncChanges();
+            } catch (IOException e1) {
+                Dialogs.showErrorMessage("Sync project", e1);
+            }
+            qupath.refreshProject();
+        }
     }
 
 
@@ -139,5 +240,18 @@ public class QPHRMRetrieveFromHRM {
                     recursiveFileListing(file, typeName, imageTypeMap);
                 }
             }
+    }
+
+
+
+    public static void parseSummaryFile(File file)  {
+        try{
+            Document htmlDocument = Jsoup.parse(file);
+            System.out.println(htmlDocument.text());
+        } catch(IOException e){
+            System.out.println("Cannot parse");
+        }
+
+
     }
 }

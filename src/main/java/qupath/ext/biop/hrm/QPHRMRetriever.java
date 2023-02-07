@@ -6,9 +6,9 @@ import java.io.IOException;
 import java.util.Map;
 
 public interface QPHRMRetriever {
-    boolean sendBack(Map<String, String> metadata);
+    QPHRMRetriever sendBack(Map<String, String> metadata);
 
-    void toQuPath(QuPathGUI qupath, String path) throws IOException;
+    void toQuPath(QuPathGUI qupath);
 
     QPHRMRetriever setImage(String imagePath);
 

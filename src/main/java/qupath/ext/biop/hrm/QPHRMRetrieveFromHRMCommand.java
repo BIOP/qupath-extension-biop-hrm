@@ -40,7 +40,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         String username = QPHRMTools.askUsername();
         String root = "C:\\Users\\dornier\\Downloads";//"\\\\svraw1.epfl.ch\\ptbiop\\HRM-Share";
 
-        boolean sentImages = QPHRMRetrieveFromHRM.retrieve(root, username);
+        boolean sentImages = QPHRMRetrieveFromHRM.retrieve(qupath, root, username);
 
         /*Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
                 sentImages[0],
