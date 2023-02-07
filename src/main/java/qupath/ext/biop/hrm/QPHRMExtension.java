@@ -27,11 +27,13 @@ public class QPHRMExtension implements QuPathExtension, GitHubProject {
         alreadyInstalled = true;
 
         // for HRM extension
-        var actionRawClients = ActionTools.createAction(new QPHRMSendToHRMCommand(qupath), "Send to HRM");
+        var sendToHRMMenu = ActionTools.createAction(new QPHRMSendToHRMCommand(qupath), "Send to HRM");
+        var retrieveFromHRMMenu = ActionTools.createAction(new QPHRMRetrieveFromHRMCommand(qupath), "Retrieve from HRM");
 
         MenuTools.addMenuItems(qupath.getMenu("Extensions", false),
                 MenuTools.createMenu("HRM",
-                        actionRawClients
+                        sendToHRMMenu,
+                        retrieveFromHRMMenu
                 )
         );
     }

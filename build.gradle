@@ -23,6 +23,9 @@ repositories {
   maven{
         url "https://maven.scijava.org/content/groups/public"
   }
+    maven{
+        url "https://artifacts.igred.fr/releases"
+    }
 }
 
 configurations {

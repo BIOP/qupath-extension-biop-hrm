@@ -38,7 +38,7 @@ public class QPHRMSendToHRM {
         // set the username for local images only
         String username = "";
         if(omeroServersList.isEmpty())
-            username = askUsername();
+            username = QPHRMTools.askUsername();
 
         // omero images to send
         for(ImageServer<BufferedImage> imageServer:omeroServersList) {
@@ -68,24 +68,4 @@ public class QPHRMSendToHRM {
         return (new int[]{nSentImages, nSkippedImages});
     }
 
-
-    protected static String askUsername(){
-
-        GridPane pane = new GridPane();
-        Label labUsername = new Label("Username");
-        TextField tfUsername = new TextField("");
-        labUsername.setLabelFor(tfUsername);
-
-        int row = 0;
-
-        pane.add(labUsername, 0, row++);
-        pane.add(tfUsername, 1, row);
-        pane.setHgap(5);
-        pane.setVgap(5);
-
-        if (!Dialogs.showConfirmDialog("Login", pane))
-            return null;
-
-        return tfUsername.getText();
-    }
 }
