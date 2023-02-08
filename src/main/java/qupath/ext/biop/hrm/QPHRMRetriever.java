@@ -6,11 +6,13 @@ import java.io.IOException;
 import java.util.Map;
 
 public interface QPHRMRetriever {
-    QPHRMRetriever sendBack(Map<String, String> metadata);
+    QPHRMRetriever sendBack();
 
     void toQuPath(QuPathGUI qupath);
 
     QPHRMRetriever setImage(String imagePath);
 
     QPHRMRetriever buildTarget();
+
+    QPHRMRetriever setMetadata(Map<String, Map<String, String>> metadata);
 }

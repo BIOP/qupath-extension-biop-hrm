@@ -3,8 +3,11 @@ package qupath.ext.biop.hrm;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import org.apache.commons.io.filefilter.SuffixFileFilter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
@@ -26,13 +29,17 @@ import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileFilter;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 public class QPHRMRetrieveFromHRM {
@@ -59,14 +66,22 @@ public class QPHRMRetrieveFromHRM {
 
         // select the type of connection and choose the correct retriever
         for(Map.Entry<String,String> entry : imageTypeMap.entrySet()){
-            Map<String, String> metadata = new HashMap<>(){{put("test","1"); put("retest","2");}}; //TODO find a way to parse the txt file
+            // get the parameters file
+            File paramFile = getParameterFile(entry.getKey());
+            Map<String, Map<String, String>> metadata = new HashMap<>();
+
+            // parse the parameter file and extract key-value pairs
+            if(paramFile != null)
+                metadata = parseSummaryFile(paramFile);
+
             switch(entry.getValue().toLowerCase()){
                 case "omero":
                     new QPHRMOmeroRetriever()
                             .setImage(entry.getKey())
                             .setClient(client)
+                            .setMetadata(metadata)
                             .buildTarget()
-                            .sendBack(metadata)
+                            .sendBack()
                             .toQuPath(qupath);
                     break;
                 case "local":
@@ -78,8 +93,23 @@ public class QPHRMRetrieveFromHRM {
         return true;
     }
 
+    private static File getParameterFile(String imagePath){
+        File imageFile = new File(imagePath);
+        int extensionPosition = imageFile.getName().lastIndexOf(".");
+        String imageName = imageFile.getName().substring(0, extensionPosition);
 
-    public static void toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI) throws IOException {
+        File[] files = imageFile.getParentFile().listFiles();
+        if(files == null)
+            return null;
+
+        List<File> parametersFile = Arrays.stream(files).filter(e -> e.getName().endsWith(".parameters.txt") && e.getName().contains(imageName)).collect(Collectors.toList());
+
+        if(!parametersFile.isEmpty())
+            return parametersFile.get(0);
+        else return null;
+    }
+
+    public static void toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI, Map<String, String> keyVals) throws IOException {
         List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
         Project<BufferedImage> project = qupath.getProject();
 
@@ -147,7 +177,7 @@ public class QPHRMRetrieveFromHRM {
                 }
 
                 // add metadata
-                entry.putMetadataValue("test","1");
+                keyVals.forEach((key, value)->entry.putMetadataValue(key,value));
             }
 
             // refresh the project
@@ -244,14 +274,46 @@ public class QPHRMRetrieveFromHRM {
 
 
 
-    public static void parseSummaryFile(File file)  {
+    public static Map<String, Map<String, String>> parseSummaryFile(File file)  {
+        Map<String, Map<String, String>> nameSpaceKeyValueMap = new TreeMap<>();
+
         try{
+            // parse the html parameters file
             Document htmlDocument = Jsoup.parse(file);
-            System.out.println(htmlDocument.text());
-        } catch(IOException e){
-            System.out.println("Cannot parse");
+
+            // get all the "tables" node
+            Elements tables = htmlDocument.getElementsByTag("table");
+            tables.forEach(table->{
+                // get all table rows (including headers)
+                Elements parameters = table.getElementsByTag("tr");
+
+                // get the header
+                String header = parameters.get(0).firstElementChild().text();
+
+                // make a sub list with only parameters (without headers)
+                List<Element> reducedParameters = parameters.subList(2,parameters.size()-1);
+                Map<String, String> keyValues = new TreeMap<>(); // to have the natural order of elements
+
+                reducedParameters.forEach(parameter->{
+                    Element element = parameter.firstElementChild();
+                    if(element != null) {
+                        String param = element.text();
+                        String channel = parameter.after(element).firstElementChild().text();
+                        String value = parameter.lastElementChild().text();
+
+                        if(channel.equals("All"))
+                            keyValues.put(param, value);
+                        else
+                            keyValues.put(param+ " ch"+channel, value);
+                    }
+                });
+                nameSpaceKeyValueMap.put(header, keyValues);
+            });
+
+        } catch(IOException | NullPointerException e){
+            Dialogs.showWarningNotification("Parameter file parsing", "Cannot parse the file "+file.toString()+". No key values will be uploaded");
+            return new HashMap<>();
         }
-
-
+        return nameSpaceKeyValueMap;
     }
 }

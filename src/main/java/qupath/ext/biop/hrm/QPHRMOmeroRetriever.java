@@ -7,36 +7,19 @@ import omero.model.NamedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
-import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
-import qupath.ext.biop.servers.omero.raw.OmeroRawScripting;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.ServerTools;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectIO;
-import qupath.lib.projects.ProjectImageEntry;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.TreeMap;
 
 public class QPHRMOmeroRetriever implements QPHRMRetriever {
     private final static Logger logger = LoggerFactory.getLogger(QPHRMOmeroRetriever.class);
@@ -44,13 +27,14 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     private File imageToSend;
     private long target;
     private long imageId;
+    private Map<String, Map<String, String>> metadata;
 
     public QPHRMOmeroRetriever(){
 
     }
 
     @Override
-    public QPHRMOmeroRetriever sendBack(Map<String, String> metadata) {
+    public QPHRMOmeroRetriever sendBack() {
         if(this.imageToSend != null && this.imageToSend.exists()){
             // read the target dataset
             DatasetData dataset = OmeroRawTools.readOmeroDataset(client, target);
@@ -65,15 +49,20 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
                         this.imageId = ids.get(0);
 
                         // convert key value pairs to omero-compatible object NamedValue
-                        List<NamedValue> omeroKeyValues = new ArrayList<>();
-                        metadata.forEach((key,value)-> omeroKeyValues.add(new NamedValue(key,value)));
+                        metadata.forEach((header,map)->{
+                            List<NamedValue> omeroKeyValues = new ArrayList<>();
+                            map.forEach((key, value)->omeroKeyValues.add(new NamedValue(key,value)));
 
-                        // set annotation map
-                        MapAnnotationData newOmeroAnnotationMap = new MapAnnotationData();
-                        newOmeroAnnotationMap.setContent(omeroKeyValues);
-                        newOmeroAnnotationMap.setNameSpace("openmicroscopy.org/omero/client/mapAnnotation"); //TODO change the namespace
+                            // set annotation map
+                            MapAnnotationData newOmeroAnnotationMap = new MapAnnotationData();
+                            newOmeroAnnotationMap.setContent(omeroKeyValues);
 
-                        OmeroRawTools.addKeyValuesOnOmero(newOmeroAnnotationMap, this.client, this.imageId);
+                            // set namespace
+                            newOmeroAnnotationMap.setNameSpace(header);
+
+                            // send key-values on OMERO
+                            OmeroRawTools.addKeyValuesOnOmero(newOmeroAnnotationMap, this.client, this.imageId);
+                        });
                     } else {
                         Dialogs.showWarningNotification("Upload from HRM", "Image "+this.imageToSend.toString()+" cannot be uploaded on OMERO");
                     }
@@ -90,7 +79,6 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
         return this;
     }
 
-    // TODO find a way to build the server URI not by hand
     // TODO ask Pete if there is a way to import an image in a qp project by scripting
     @Override
     public void toQuPath(QuPathGUI qupath) {
@@ -100,8 +88,13 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
         // define the builder
         OmeroRawImageServerBuilder omeroBuilder = new OmeroRawImageServerBuilder();
 
+        Map<String,String> omeroKeyValues = new TreeMap<>();
+        metadata.forEach((header,map)-> {
+            omeroKeyValues.putAll(map);
+        });
+
         try {
-            QPHRMRetrieveFromHRM.toQuPath(qupath, omeroBuilder, imageURI);
+            QPHRMRetrieveFromHRM.toQuPath(qupath, omeroBuilder, imageURI, omeroKeyValues);
         }catch(IOException e){
             Dialogs.showErrorNotification("Image to QuPath", "An error occured when trying to add image "+this.target+" to QuPath project");
             logger.error(""+e);
@@ -132,6 +125,12 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
             }else
                 this.target = Integer.parseInt(omeroDataset.split("_")[0]);
         }
+        return this;
+    }
+
+    @Override
+    public QPHRMRetriever setMetadata(Map<String, Map<String, String>> metadata) {
+        this.metadata = metadata;
         return this;
     }
 }
