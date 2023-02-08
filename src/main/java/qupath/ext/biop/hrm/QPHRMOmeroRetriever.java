@@ -101,7 +101,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
         try {
             QPHRMRetrieveFromHRM.toQuPath(qupath, omeroBuilder, imageURI, omeroKeyValues);
         }catch(IOException e){
-            Dialogs.showErrorNotification("Image to QuPath", "An error occured when trying to add image "+this.target+" to QuPath project");
+            Dialogs.showErrorNotification("Image to QuPath", "An error occured when trying to add image "+this.imageId+" to QuPath project");
             logger.error(""+e);
             logger.error(OmeroRawTools.getErrorStackTraceAsString(e));
         }
@@ -134,8 +134,12 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     }
 
     @Override
-    public QPHRMRetriever setMetadata(Map<String, Map<String, String>> metadata, File logFile) {
+    public QPHRMOmeroRetriever setMetadata(Map<String, Map<String, String>> metadata) {
         this.metadata = metadata;
+        return this;
+    }
+
+    public QPHRMOmeroRetriever setLogFile(File logFile) {
         this.logFile = logFile;
         return this;
     }

@@ -15,5 +15,5 @@ public interface QPHRMRetriever {
 
     QPHRMRetriever buildTarget();
 
-    QPHRMRetriever setMetadata(Map<String, Map<String, String>> metadata, File logFile);
+    QPHRMRetriever setMetadata(Map<String, Map<String, String>> metadata);
 }

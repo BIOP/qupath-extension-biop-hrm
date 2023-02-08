@@ -52,11 +52,12 @@ public class QPHRMRetrieveFromHRM {
                 .filter(e -> e.getValue().equalsIgnoreCase("omero"))
                 .collect(Collectors.toList());
         OmeroRawClient client = null;
-        if(!omeroList.isEmpty())
+        if(!omeroList.isEmpty()) {
             client = askForOmeroConnection();
-        if(client == null){
-            Dialogs.showErrorMessage("OMERO Connection issue", "Cannot connect to OMERO server. No image will be retrieved from HRM");
-            return false;
+            if (client == null) {
+                Dialogs.showErrorMessage("OMERO Connection issue", "Cannot connect to OMERO server. No image will be retrieved from HRM");
+                return false;
+            }
         }
 
 
@@ -64,7 +65,6 @@ public class QPHRMRetrieveFromHRM {
         for(Map.Entry<String,String> entry : imageTypeMap.entrySet()){
             // get the results file
             File paramFile = getResultsFile(entry.getKey(), ".parameters.txt");
-            File logFile = getResultsFile(entry.getKey(), ".log.txt");
 
             // parse the parameter file and extract key-value pairs
             Map<String, Map<String, String>> metadata = new TreeMap<>();
@@ -73,16 +73,24 @@ public class QPHRMRetrieveFromHRM {
 
             switch(entry.getValue().toLowerCase()){
                 case "omero":
+                    File logFile = getResultsFile(entry.getKey(), ".log.txt");
                     new QPHRMOmeroRetriever()
                             .setImage(entry.getKey())
                             .setClient(client)
-                            .setMetadata(metadata, logFile)
+                            .setMetadata(metadata)
+                            .setLogFile(logFile)
                             .buildTarget()
                             .sendBack()
                             .toQuPath(qupath);
                     break;
                 case "local":
-                    ;
+                    new QPHRMLocalRetriever()
+                            .setImage(entry.getKey())
+                            .setMetadata(metadata)
+                            .buildTarget()
+                            .sendBack()
+                            .toQuPath(qupath);
+                    break;
                 default:
                     Dialogs.showWarningNotification("Type does not exists", "Type "+entry.getValue()+" is not supported for image "+entry.getKey());
             }
@@ -97,7 +105,7 @@ public class QPHRMRetrieveFromHRM {
 
         File[] files = imageFile.getParentFile().listFiles();
         if(files == null) {
-            logger.warn("There is not file in directory "+imageFile.getParentFile().getParentFile());
+            logger.warn("There is not file in directory "+imageFile.getParentFile());
             return null;
         }
 
@@ -106,7 +114,7 @@ public class QPHRMRetrieveFromHRM {
         if(!parametersFile.isEmpty())
             return parametersFile.get(0);
         else {
-            logger.warn("There is not file with extension "+suffix+"in the folder "+imageFile.getParentFile().getParentFile());
+            logger.warn("There is not file with extension "+suffix+"in the folder "+imageFile.getParentFile());
             return null;
         }
     }
