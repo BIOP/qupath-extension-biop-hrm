@@ -25,6 +25,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     private final static Logger logger = LoggerFactory.getLogger(QPHRMOmeroRetriever.class);
     private OmeroRawClient client;
     private File imageToSend;
+    private File logFile;
     private long target;
     private long imageId;
     private Map<String, Map<String, String>> metadata;
@@ -63,6 +64,10 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
                             // send key-values on OMERO
                             OmeroRawTools.addKeyValuesOnOmero(newOmeroAnnotationMap, this.client, this.imageId);
                         });
+
+                        // add the logFile as attachment to the image
+                        OmeroRawTools.addAttachmentToOmero(this.logFile, this.client,this.imageId,"text/plain");
+
                     } else {
                         Dialogs.showWarningNotification("Upload from HRM", "Image "+this.imageToSend.toString()+" cannot be uploaded on OMERO");
                     }
@@ -129,8 +134,9 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     }
 
     @Override
-    public QPHRMRetriever setMetadata(Map<String, Map<String, String>> metadata) {
+    public QPHRMRetriever setMetadata(Map<String, Map<String, String>> metadata, File logFile) {
         this.metadata = metadata;
+        this.logFile = logFile;
         return this;
     }
 }

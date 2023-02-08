@@ -3,7 +3,6 @@ package qupath.ext.biop.hrm;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import org.apache.commons.io.filefilter.SuffixFileFilter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -12,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClients;
-import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -29,8 +27,6 @@ import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileFilter;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -66,11 +62,12 @@ public class QPHRMRetrieveFromHRM {
 
         // select the type of connection and choose the correct retriever
         for(Map.Entry<String,String> entry : imageTypeMap.entrySet()){
-            // get the parameters file
-            File paramFile = getParameterFile(entry.getKey());
-            Map<String, Map<String, String>> metadata = new HashMap<>();
+            // get the results file
+            File paramFile = getResultsFile(entry.getKey(), ".parameters.txt");
+            File logFile = getResultsFile(entry.getKey(), ".log.txt");
 
             // parse the parameter file and extract key-value pairs
+            Map<String, Map<String, String>> metadata = new TreeMap<>();
             if(paramFile != null)
                 metadata = parseSummaryFile(paramFile);
 
@@ -79,7 +76,7 @@ public class QPHRMRetrieveFromHRM {
                     new QPHRMOmeroRetriever()
                             .setImage(entry.getKey())
                             .setClient(client)
-                            .setMetadata(metadata)
+                            .setMetadata(metadata, logFile)
                             .buildTarget()
                             .sendBack()
                             .toQuPath(qupath);
@@ -93,20 +90,25 @@ public class QPHRMRetrieveFromHRM {
         return true;
     }
 
-    private static File getParameterFile(String imagePath){
+    private static File getResultsFile(String imagePath, String suffix){
         File imageFile = new File(imagePath);
         int extensionPosition = imageFile.getName().lastIndexOf(".");
         String imageName = imageFile.getName().substring(0, extensionPosition);
 
         File[] files = imageFile.getParentFile().listFiles();
-        if(files == null)
+        if(files == null) {
+            logger.warn("There is not file in directory "+imageFile.getParentFile().getParentFile());
             return null;
+        }
 
-        List<File> parametersFile = Arrays.stream(files).filter(e -> e.getName().endsWith(".parameters.txt") && e.getName().contains(imageName)).collect(Collectors.toList());
+        List<File> parametersFile = Arrays.stream(files).filter(e -> e.getName().endsWith(suffix) && e.getName().contains(imageName)).collect(Collectors.toList());
 
         if(!parametersFile.isEmpty())
             return parametersFile.get(0);
-        else return null;
+        else {
+            logger.warn("There is not file with extension "+suffix+"in the folder "+imageFile.getParentFile().getParentFile());
+            return null;
+        }
     }
 
     public static void toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI, Map<String, String> keyVals) throws IOException {
