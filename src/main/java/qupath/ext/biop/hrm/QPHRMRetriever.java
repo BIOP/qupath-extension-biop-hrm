@@ -7,13 +7,13 @@ import java.io.IOException;
 import java.util.Map;
 
 public interface QPHRMRetriever {
-    QPHRMRetriever sendBack();
+    boolean sendBack();
 
-    void toQuPath(QuPathGUI qupath);
+    boolean toQuPath(QuPathGUI qupath);
 
     QPHRMRetriever setImage(String imagePath);
 
-    QPHRMRetriever buildTarget();
+    boolean buildTarget();
 
     QPHRMRetriever setMetadata(Map<String, Map<String, String>> metadata);
 }

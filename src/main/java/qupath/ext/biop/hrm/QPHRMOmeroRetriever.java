@@ -35,75 +35,75 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     }
 
     @Override
-    public QPHRMOmeroRetriever sendBack() {
-        if(this.imageToSend != null && this.imageToSend.exists()){
-            // read the target dataset
-            DatasetData dataset = OmeroRawTools.readOmeroDataset(client, target);
-            if(dataset != null){
-                // read child images and check if it already exists on OMERO.
-                // if not, the image is not uploaded
-                Set<ImageData> imagesWithinDataset = (Set<ImageData>)dataset.getImages();
-                if(imagesWithinDataset.stream().noneMatch(e -> e.getName().equals(this.imageToSend.getName()))) {
-                    List<Long> ids = OmeroRawTools.uploadImage(this.client, dataset, this.imageToSend.toString());
+    public boolean sendBack() {
+        // read the target dataset
+        DatasetData dataset = OmeroRawTools.readOmeroDataset(this.client, this.target);
+        if(dataset != null){
+            // read child images and check if it already exists on OMERO.
+            // if not, the image is not uploaded
+            Set<ImageData> imagesWithinDataset = (Set<ImageData>)dataset.getImages();
+            if(imagesWithinDataset.stream().noneMatch(e -> e.getName().equals(this.imageToSend.getName()))) {
+                List<Long> ids = OmeroRawTools.uploadImage(this.client, dataset, this.imageToSend.toString());
 
-                    if(!ids.isEmpty()){
-                        this.imageId = ids.get(0);
+                if(!ids.isEmpty()){
+                    this.imageId = ids.get(0);
 
-                        // convert key value pairs to omero-compatible object NamedValue
-                        metadata.forEach((header,map)->{
-                            List<NamedValue> omeroKeyValues = new ArrayList<>();
-                            map.forEach((key, value)->omeroKeyValues.add(new NamedValue(key,value)));
+                    // convert key value pairs to omero-compatible object NamedValue
+                    this.metadata.forEach((header,map)->{
+                        List<NamedValue> omeroKeyValues = new ArrayList<>();
+                        map.forEach((key, value)->omeroKeyValues.add(new NamedValue(key,value)));
 
-                            // set annotation map
-                            MapAnnotationData newOmeroAnnotationMap = new MapAnnotationData();
-                            newOmeroAnnotationMap.setContent(omeroKeyValues);
+                        // set annotation map
+                        MapAnnotationData newOmeroAnnotationMap = new MapAnnotationData();
+                        newOmeroAnnotationMap.setContent(omeroKeyValues);
 
-                            // set namespace
-                            newOmeroAnnotationMap.setNameSpace(header);
+                        // set namespace
+                        newOmeroAnnotationMap.setNameSpace(header);
 
-                            // send key-values on OMERO
-                            OmeroRawTools.addKeyValuesOnOmero(newOmeroAnnotationMap, this.client, this.imageId);
-                        });
+                        // send key-values on OMERO
+                        OmeroRawTools.addKeyValuesOnOmero(newOmeroAnnotationMap, this.client, this.imageId);
+                    });
 
-                        // add the logFile as attachment to the image
-                        OmeroRawTools.addAttachmentToOmero(this.logFile, this.client,this.imageId,"text/plain");
+                    // add the logFile as attachment to the image
+                    OmeroRawTools.addAttachmentToOmero(this.logFile, this.client,this.imageId,"text/plain");
+                    return true;
 
-                    } else {
-                        Dialogs.showWarningNotification("Upload from HRM", "Image "+this.imageToSend.toString()+" cannot be uploaded on OMERO");
-                    }
                 } else {
-                    Dialogs.showWarningNotification("Existing images on OMERO", "Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
+                    Dialogs.showWarningNotification("Upload from HRM", "Image "+this.imageToSend.toString()+" cannot be uploaded on OMERO");
                 }
             } else {
-                logger.error("The dataset "+target+" does not exist on OMERO");
+                Dialogs.showWarningNotification("Existing images on OMERO", "Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
             }
+        } else {
+            Dialogs.showErrorNotification("Un-existing object","The dataset "+this.target+" does not exist on OMERO");
         }
-        else
-            Dialogs.showErrorNotification("Un-existing image", "The image "+this.imageToSend+" does not exist");
-
-        return this;
+        return false;
     }
 
     // TODO ask Pete if there is a way to import an image in a qp project by scripting
     @Override
-    public void toQuPath(QuPathGUI qupath) {
+    public boolean toQuPath(QuPathGUI qupath) {
         String serverUri = this.client.getServerURI().toString();
         String imageURI = serverUri + String.format("/webclient/?show=image-%d", this.imageId);
 
         // define the builder
         OmeroRawImageServerBuilder omeroBuilder = new OmeroRawImageServerBuilder();
 
+        // add all key-values independently of their parent namespace
         Map<String,String> omeroKeyValues = new TreeMap<>();
         metadata.forEach((header,map)-> {
             omeroKeyValues.putAll(map);
         });
 
         try {
+            // add the current image to the QuPath project
             QPHRMRetrieveFromHRM.toQuPath(qupath, omeroBuilder, imageURI, omeroKeyValues);
+            return true;
         }catch(IOException e){
             Dialogs.showErrorNotification("Image to QuPath", "An error occured when trying to add image "+this.imageId+" to QuPath project");
             logger.error(""+e);
             logger.error(OmeroRawTools.getErrorStackTraceAsString(e));
+            return false;
         }
     }
 
@@ -119,18 +119,24 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     }
 
     @Override
-    public QPHRMOmeroRetriever buildTarget(){
+    public boolean buildTarget(){
         if(this.imageToSend != null && this.imageToSend.exists()) {
             String omeroDataset = this.imageToSend.getParentFile().getName();
 
+            // if orphaned image
             if(omeroDataset.equals("None")){
+                // create a new orphaned dataset
                 DatasetData dataset = OmeroRawTools.createNewDataset(this.client, "HRM_"+ new Date());
                 if(dataset != null)
                     this.target = dataset.getId();
+                else return false;
             }else
+                // parse the parent dataset id
                 this.target = Integer.parseInt(omeroDataset.split("_")[0]);
+            return true;
         }
-        return this;
+        Dialogs.showErrorNotification("Un-existing image", "The image "+this.imageToSend+" does not exist");
+        return false;
     }
 
     @Override

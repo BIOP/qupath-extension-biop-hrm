@@ -71,29 +71,33 @@ public class QPHRMRetrieveFromHRM {
             if(paramFile != null)
                 metadata = parseSummaryFile(paramFile);
 
+            QPHRMRetriever retriever;
             switch(entry.getValue().toLowerCase()){
                 case "omero":
                     File logFile = getResultsFile(entry.getKey(), ".log.txt");
-                    new QPHRMOmeroRetriever()
+                    retriever = new QPHRMOmeroRetriever()
                             .setImage(entry.getKey())
                             .setClient(client)
                             .setMetadata(metadata)
-                            .setLogFile(logFile)
-                            .buildTarget()
-                            .sendBack()
-                            .toQuPath(qupath);
+                            .setLogFile(logFile);
+
                     break;
                 case "local":
-                    new QPHRMLocalRetriever()
+                    retriever = new QPHRMLocalRetriever()
                             .setImage(entry.getKey())
-                            .setMetadata(metadata)
-                            .buildTarget()
-                            .sendBack()
-                            .toQuPath(qupath);
+                            .setMetadata(metadata);
+
                     break;
                 default:
                     Dialogs.showWarningNotification("Type does not exists", "Type "+entry.getValue()+" is not supported for image "+entry.getKey());
+                    return false;
             }
+
+            if(retriever.buildTarget())
+                if(retriever.sendBack())
+                    retriever.toQuPath(qupath);
+
+
         }
         return true;
     }
@@ -322,7 +326,7 @@ public class QPHRMRetrieveFromHRM {
 
         } catch(IOException | NullPointerException e){
             Dialogs.showWarningNotification("Parameter file parsing", "Cannot parse the file "+file.toString()+". No key values will be uploaded");
-            return new HashMap<>();
+            return new TreeMap<>();
         }
         return nameSpaceKeyValueMap;
     }

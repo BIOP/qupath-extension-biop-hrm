@@ -22,41 +22,66 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
     private File target;
     private Map<String, Map<String, String>> metadata;
     @Override
-    public QPHRMLocalRetriever sendBack() {
+    public boolean sendBack() {
         try {
-            File[] filesToCopy = this.imageToSend.getParentFile().listFiles();
-            String imageName = this.imageToSend.getName();
-            int index = imageName.lastIndexOf(".");
-            imageName = imageName.substring(0, index);
+            // test if the deconvolved folder already exists
+            if(this.target.exists()){
+                Dialogs.showWarningNotification("Sending back images", "Image and results in  "+this.target.getAbsolutePath()+" already exists");
+                return true;
+            }
 
-            if (filesToCopy != null)
-                for (File sourceImage : filesToCopy)
-                    if (sourceImage.getName().contains(imageName))
-                        FileUtils.copyFileToDirectory(sourceImage, this.target);
+            // create the deconvolved folder
+            if (this.target.mkdir()){
+                File[] filesToCopy = this.imageToSend.getParentFile().listFiles();
+                String imageName = this.imageToSend.getName();
+                int index = imageName.lastIndexOf(".");
+                imageName = imageName.substring(0, index);
+
+                // copy all files referring to the current image name in the target folder
+                if (filesToCopy != null)
+                    for (File sourceImage : filesToCopy)
+                        if (sourceImage.getName().contains(imageName))
+                            FileUtils.copyFileToDirectory(sourceImage, this.target);
+
+                return true;
+            }
+            else Dialogs.showErrorNotification("Sending back images",
+                    "Cannot create the folder "+this.target.getAbsolutePath()+
+                            " to copy files from "+this.imageToSend.getParentFile().getAbsolutePath());
         }catch(IOException e){
-            Dialogs.showWarningNotification("Sending back",
-                    "Cannot copy files from "+this.imageToSend.getParentFile().getAbsolutePath() +
-                            " to "+this.target.getAbsolutePath());
+            Dialogs.showErrorNotification("Sending back images",
+                    "Cannot create the folder "+this.target.getAbsolutePath()+
+                            " to copy files from "+this.imageToSend.getParentFile().getAbsolutePath());
         }
 
-        return this;
+        return false;
     }
 
     @Override
-    public void toQuPath(QuPathGUI qupath) {
+    public boolean toQuPath(QuPathGUI qupath) {
         String imageURI = this.target.getAbsolutePath() + File.separator + this.imageToSend.getName();
 
+        // check if the image within the target folder exists
+        if(!new File(imageURI).exists()){
+            Dialogs.showErrorNotification("Import to QuPath", "The image "+imageURI+" does not exists.");
+            return false;
+        }
+
+        // add all key-values independently of their parent namespace
         Map<String,String> omeroKeyValues = new TreeMap<>();
         metadata.forEach((header,map)-> {
             omeroKeyValues.putAll(map);
         });
 
         try {
+            // add the image to QuPath project
             QPHRMRetrieveFromHRM.toQuPath(qupath, null, imageURI, omeroKeyValues);
+            return true;
         }catch(IOException e){
             Dialogs.showErrorNotification("Image to QuPath", "An error occured when trying to add image "+imageURI+" to QuPath project");
             logger.error(""+e);
             logger.error(OmeroRawTools.getErrorStackTraceAsString(e));
+            return false;
         }
     }
 
@@ -67,20 +92,25 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
     }
 
     @Override
-    public QPHRMLocalRetriever buildTarget() {
+    public boolean buildTarget() {
         if(this.imageToSend != null && this.imageToSend.exists()) {
-            // extract the raw image name (without the hrm code)
             String hrmName = this.imageToSend.getName();
+            // remove "hrm.extension" suffix from image name
             int index = hrmName.lastIndexOf("_");
             hrmName = hrmName.substring(0,index);
+
+            // extract hrm code
             index = hrmName.lastIndexOf("_");
             String hrmCode = hrmName.substring(index);
+
+            // remove hrm code from image name
             hrmName = hrmName.substring(0,index);
 
             // list all available images
+            // TODO find a way to pass qupathGui in argument
             List<ProjectImageEntry<BufferedImage>> imageList = QuPathGUI.getInstance().getProject().getImageList();
 
-            // ge the closest image in the project to the hrm image name
+            // get the closest image to the hrm image name from the current project
             ProjectImageEntry<BufferedImage> finalImage = null;
             double higherSimilarity = 0;
             for(ProjectImageEntry<BufferedImage> image :imageList){
@@ -95,21 +125,21 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
                 try {
                     // get parent folder of the raw image
                     String parentFolder = new File(finalImage.getURIs().iterator().next().toString()).getParent();
+
+                    // remove the prefix from the image's absolute path
                     parentFolder = parentFolder.replace("file:\\","");
+
+                    // set the deconvolved folder name and path
                     String deconvolvedFolderPath = parentFolder + File.separator + "Deconvolved" + hrmCode;
+                    this.target = new File(deconvolvedFolderPath);
 
-                    // create a deconvolved folder
-                    File deconvolvedFolder = new File(deconvolvedFolderPath);
-                    if (deconvolvedFolder.mkdir())
-                        this.target = deconvolvedFolder;
-                    else System.out.println("cannot create the folder "+deconvolvedFolder);
-
+                    return true;
                 }catch(IOException e){
                     Dialogs.showWarningNotification("Building Local target", "Error when trying to get URI from image "+finalImage.getImageName());
                 }
             }else Dialogs.showWarningNotification("Building Local target", "No image available in your project. Cannot copy deconvolution results");
         }
-        return this;
+        return false;
     }
 
     @Override
@@ -133,7 +163,6 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
         if (longerLength == 0) { return 1.0; /* both strings are zero length */ }
 
         return (longerLength - editDistance(longer, shorter)) / (double) longerLength;
-
     }
 
     /**
