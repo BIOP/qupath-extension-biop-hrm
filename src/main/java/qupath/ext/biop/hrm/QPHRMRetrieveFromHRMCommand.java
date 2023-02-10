@@ -1,9 +1,15 @@
 package qupath.ext.biop.hrm;
 
+import javafx.geometry.Pos;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.paint.Color;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -34,14 +40,71 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
             return;
         }
 
-        boolean confirm = Dialogs.showConfirmDialog("WARNING !", "All images in the HRM-Share/Deconvolved/QuPath folder will be processed.");
-        if(!confirm)
+        GridPane pane = new GridPane();
+        Label labUsername = new Label("HRM Username");
+        TextField tfUsername = new TextField("");
+        labUsername.setLabelFor(tfUsername);
+
+        Label labHost = new Label("OMERO Host (https://hostname)");
+        TextField tfHost = new TextField("https://omero-poc.epfl.ch");
+        labHost.setLabelFor(tfHost);
+        labHost.setDisable(true);
+        tfHost.setDisable(true);
+
+        String deleteImagesWarning = "Warning : every data related to images \n will be deleted from your QuPath folder \n in HRM-Share";
+        Label labelSameImageWarning = new Label(deleteImagesWarning);
+        labelSameImageWarning.setTextFill(Color.RED);
+        labelSameImageWarning.setMaxWidth(Double.MAX_VALUE);
+        labelSameImageWarning.setMinHeight(Label.USE_PREF_SIZE);
+        labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
+        labelSameImageWarning.setAlignment(Pos.CENTER);
+        labelSameImageWarning.setVisible(false);
+
+        CheckBox chkOmero = new CheckBox("Connect to OMERO");
+        chkOmero.setMinWidth(CheckBox.USE_PREF_SIZE);
+        chkOmero.setSelected(false);
+        chkOmero.selectedProperty().addListener((v, o, n) -> {
+            labHost.setDisable(!chkOmero.selectedProperty().get());
+            tfHost.setDisable(!chkOmero.selectedProperty().get());
+        });
+
+        CheckBox chkOverwrite = new CheckBox("Overwrite data on HRM");
+        chkOverwrite.setMinWidth(CheckBox.USE_PREF_SIZE);
+        chkOverwrite.setSelected(false);
+        chkOverwrite.selectedProperty().addListener((v, o, n) -> {
+            labelSameImageWarning.setVisible(chkOverwrite.selectedProperty().get());
+        });
+
+
+        int row = 0;
+        pane.add(labUsername, 0, row);
+        pane.add(tfUsername, 1, row++);
+        pane.add(chkOmero,0, row++);
+        pane.add(labHost, 0, row);
+        pane.add(tfHost, 1, row++);
+        pane.add(chkOverwrite,0, row++);
+        pane.add(labelSameImageWarning,0,row);
+
+        pane.setHgap(5);
+        pane.setVgap(5);
+
+        if (!Dialogs.showConfirmDialog("Login", pane))
             return;
 
-        String username = QPHRMTools.askUsername();
-        String root = "C:\\Users\\dornier\\Downloads";//"\\\\svraw1.epfl.ch\\ptbiop\\HRM-Share";
+        String username = tfUsername.getText();
+        boolean deleteOnHRM = chkOverwrite.selectedProperty().get();
+        String host;
+        if(chkOmero.selectedProperty().get())
+            host = tfHost.getText();
+        else host= "";
 
-        boolean sentImages = QPHRMRetrieveFromHRM.retrieve(qupath, root, username);
+        if(username.equals("")){
+            Dialogs.showErrorNotification("Invalid username", "Please fill the username field");
+            return;
+        }
+
+        String root = "C:\\Users\\dornier\\Downloads";//"\\\\svraw1.epfl.ch\\ptbiop\\HRM-Share";
+        boolean sentImages = QPHRMRetrieveFromHRM.retrieve(qupath, root, username, deleteOnHRM, host);
 
         /*Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
                 sentImages[0],
@@ -53,4 +116,5 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
                 (sentImages[1] == 1 ? "was" : "were")));*/
 
     }
+
 }

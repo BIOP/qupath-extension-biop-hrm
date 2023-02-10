@@ -42,9 +42,11 @@ public class QPHRMRetrieveFromHRM {
 
     private final static Logger logger = LoggerFactory.getLogger(QPHRMRetrieveFromHRM.class);
 
-    public static boolean retrieve(QuPathGUI qupath, String root, String owner){
+    public static boolean retrieve(QuPathGUI qupath, String root, String owner, boolean deleteOnHRM, String omeroHost){
         // list all files retrieve in QuPath
         Map<String, String> imageTypeMap = listFileToUpload(root, owner);
+        if(imageTypeMap.isEmpty())
+            return false;
 
         // check if there is an OMERO connection to get and ask for one in case
         List<Map.Entry<String, String>> omeroList = imageTypeMap.entrySet()
@@ -53,13 +55,12 @@ public class QPHRMRetrieveFromHRM {
                 .collect(Collectors.toList());
         OmeroRawClient client = null;
         if(!omeroList.isEmpty()) {
-            client = askForOmeroConnection();
+            client = askForOmeroConnection(omeroHost);
             if (client == null) {
                 Dialogs.showErrorMessage("OMERO Connection issue", "Cannot connect to OMERO server. No image will be retrieved from HRM");
                 return false;
             }
         }
-
 
         // select the type of connection and choose the correct retriever
         for(Map.Entry<String,String> entry : imageTypeMap.entrySet()){
@@ -86,7 +87,6 @@ public class QPHRMRetrieveFromHRM {
                     retriever = new QPHRMLocalRetriever()
                             .setImage(entry.getKey())
                             .setMetadata(metadata);
-
                     break;
                 default:
                     Dialogs.showWarningNotification("Type does not exists", "Type "+entry.getValue()+" is not supported for image "+entry.getKey());
@@ -95,11 +95,31 @@ public class QPHRMRetrieveFromHRM {
 
             if(retriever.buildTarget())
                 if(retriever.sendBack())
-                    retriever.toQuPath(qupath);
-
-
+                    if(retriever.toQuPath(qupath))
+                        if(deleteOnHRM)
+                            if(deleteAssociatedFiles(entry.getKey()))
+                                logger.info("Image"+entry.getKey()+" and associated files are deleted on HRM-Share folder");
+                            else
+                                logger.error("Cannot delete image "+entry.getKey()+" neither associated files");
         }
         return true;
+    }
+
+    private static boolean deleteAssociatedFiles(String filePath){
+        File imageFile = new File(filePath);
+        String imageName = imageFile.getName();
+        imageName = imageName.substring(0,imageName.lastIndexOf("."));
+        File[] fileList = imageFile.getParentFile().listFiles();
+
+        if (fileList == null)
+            return false;
+
+        boolean filesDeleted = true;
+        for(File file : fileList)
+            if(file.getName().contains(imageName))
+                filesDeleted = filesDeleted && file.delete();
+
+        return filesDeleted;
     }
 
     private static File getResultsFile(String imagePath, String suffix){
@@ -204,42 +224,40 @@ public class QPHRMRetrieveFromHRM {
         }
     }
 
+    private static OmeroRawClient askForOmeroConnection(String host){
+        if (host.equals("")){
+            GridPane gp = new GridPane();
+            gp.setVgap(5.0);
+            TextField tf = new TextField("");
+            tf.setPrefWidth(400);
+            PaneTools.addGridRow(gp, 0, 0, "Enter OMERO URL", new Label("Enter an OMERO server URL to browse (e.g. http://idr.openmicroscopy.org/):"));
+            PaneTools.addGridRow(gp, 1, 0, "Enter OMERO URL", tf, tf);
+            var confirm = Dialogs.showConfirmDialog("Enter OMERO URL", gp);
+            if (!confirm)
+                return null;
 
-    //TODO should find a way to not duplicate this code from OMERO Raw extension
-    private static OmeroRawClient askForOmeroConnection(){
-        GridPane gp = new GridPane();
-        gp.setVgap(5.0);
-        TextField tf = new TextField("https://omero-server.epfl.ch/");
-        tf.setPrefWidth(400);
-        PaneTools.addGridRow(gp, 0, 0, "Enter OMERO URL", new Label("Enter an OMERO server URL to browse (e.g. http://idr.openmicroscopy.org/):"));
-        PaneTools.addGridRow(gp, 1, 0, "Enter OMERO URL", tf, tf);
-        var confirm = Dialogs.showConfirmDialog("Enter OMERO URL", gp);
-        if (!confirm)
-            return null;
-
-        var path = tf.getText();
-        if (path == null || path.isEmpty())
-            return null;
+            var path = tf.getText();
+        }
 
         try {
-            if (!path.startsWith("http:") && !path.startsWith("https:")) {
+            if (!host.startsWith("http:") && !host.startsWith("https:")) {
                 Dialogs.showErrorMessage("Non valid URL", "The input URL must contain a scheme (e.g. \"https://\")!");
                 return null;
             }
 
             // Make the path a URI
-            URI uri = new URI(path);
+            URI uri = new URI(host);
 
             // Clean the URI (in case it's a full path)
+            // TODO find a way to reuse a client if already exists and not to create a new one.
             URI uriServer = OmeroRawTools.getServerURI(uri);
            return OmeroRawClients.createClientAndLogin(uriServer);
 
         }catch(IOException | URISyntaxException e){
-            Dialogs.showErrorMessage("OMERO Connection issue", "Cannot connect to OMERO server with "+path);
+            Dialogs.showErrorMessage("OMERO Connection issue", "Cannot connect to OMERO server with "+host);
             return null;
         }
     }
-
 
 
     private static Map<String, String> listFileToUpload(String root, String owner){
@@ -268,8 +286,11 @@ public class QPHRMRetrieveFromHRM {
                 if(dir.isDirectory())
                     recursiveFileListing(dir, dir.getName(), imageTypeMap);
 
-        return imageTypeMap;
+        // check if there are files to retrieve
+        if(imageTypeMap.isEmpty())
+            Dialogs.showErrorNotification("Empty directory","There is not image to retrieve from " +qupathFolder.getAbsolutePath());
 
+        return imageTypeMap;
     }
 
 

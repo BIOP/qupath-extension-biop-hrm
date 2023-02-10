@@ -26,7 +26,8 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
         try {
             // test if the deconvolved folder already exists
             if(this.target.exists()){
-                Dialogs.showWarningNotification("Sending back images", "Image and results in  "+this.target.getAbsolutePath()+" already exists");
+                Dialogs.showWarningNotification("Sending back images",
+                        "Image and results in  "+this.target.getAbsolutePath()+" already exists");
                 return true;
             }
 
