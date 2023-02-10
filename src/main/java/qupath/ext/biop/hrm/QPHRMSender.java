@@ -3,6 +3,9 @@ package qupath.ext.biop.hrm;
 import qupath.lib.images.servers.ImageServer;
 import java.awt.image.BufferedImage;
 
+/**
+ * Send images from the current QuPath project to HRM
+ */
 public interface QPHRMSender {
     /**
      * get the HRM folder path

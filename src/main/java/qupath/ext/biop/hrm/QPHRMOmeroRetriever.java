@@ -23,11 +23,23 @@ import java.util.TreeMap;
 
 public class QPHRMOmeroRetriever implements QPHRMRetriever {
     private final static Logger logger = LoggerFactory.getLogger(QPHRMOmeroRetriever.class);
+
+    /** OMERO client */
     private OmeroRawClient client;
+
+    /** deconvolved image */
     private File imageToSend;
+
+    /** HRM log file */
     private File logFile;
+
+    /** Dataset id where to upload the deconvolved image */
     private long target;
+
+    /** OMERO id of the uploaded deconvolved image */
     private long imageId;
+
+    /** Image and restoration parameters of the deconvolution */
     private Map<String, Map<String, String>> metadata;
 
     public QPHRMOmeroRetriever(){
@@ -83,6 +95,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     // TODO ask Pete if there is a way to import an image in a qp project by scripting
     @Override
     public boolean toQuPath(QuPathGUI qupath) {
+        // get the image uri
         String serverUri = this.client.getServerURI().toString();
         String imageURI = serverUri + String.format("/webclient/?show=image-%d", this.imageId);
 
@@ -125,7 +138,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
 
             // if orphaned image
             if(omeroDataset.equals("None")){
-                // create a new orphaned dataset
+                // create a new orphaned dataset and retrieve its id
                 DatasetData dataset = OmeroRawTools.createNewDataset(this.client, "HRM_"+ new Date());
                 if(dataset != null)
                     this.target = dataset.getId();

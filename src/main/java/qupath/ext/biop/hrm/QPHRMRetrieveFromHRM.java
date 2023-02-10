@@ -38,10 +38,23 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+/**
+ * List deconvolved images from HRM and select the retriever corresponding to where the raw image is located (locally
+ * or on OMERO).
+ */
 public class QPHRMRetrieveFromHRM {
-
     private final static Logger logger = LoggerFactory.getLogger(QPHRMRetrieveFromHRM.class);
 
+    /**
+     * List deconvolved images and send them back to raw location and to QuPath project
+     *
+     * @param qupath
+     * @param root
+     * @param owner
+     * @param deleteOnHRM
+     * @param omeroHost
+     * @return
+     */
     public static boolean retrieve(QuPathGUI qupath, String root, String owner, boolean deleteOnHRM, String omeroHost){
         // list all files retrieve in QuPath
         Map<String, String> imageTypeMap = listFileToUpload(root, owner);
@@ -75,6 +88,7 @@ public class QPHRMRetrieveFromHRM {
             QPHRMRetriever retriever;
             switch(entry.getValue().toLowerCase()){
                 case "omero":
+                    // get the log file
                     File logFile = getResultsFile(entry.getKey(), ".log.txt");
                     retriever = new QPHRMOmeroRetriever()
                             .setImage(entry.getKey())
@@ -93,6 +107,7 @@ public class QPHRMRetrieveFromHRM {
                     return false;
             }
 
+            // send back deconvolved image to their location and to QuPath project
             if(retriever.buildTarget())
                 if(retriever.sendBack())
                     if(retriever.toQuPath(qupath))
@@ -105,15 +120,28 @@ public class QPHRMRetrieveFromHRM {
         return true;
     }
 
+    /**
+     * deletes deconvolved image and associated files (.txt files and other) from HRM.
+     * Deletion is based on image name, that contains a unique HRM ID
+     *
+     * @param filePath
+     * @return
+     */
     private static boolean deleteAssociatedFiles(String filePath){
+        // get image name
         File imageFile = new File(filePath);
         String imageName = imageFile.getName();
+
+        // remove extension
         imageName = imageName.substring(0,imageName.lastIndexOf("."));
+
+        // list all files in the parent folder
         File[] fileList = imageFile.getParentFile().listFiles();
 
         if (fileList == null)
             return false;
 
+        // delete files that contain the image name
         boolean filesDeleted = true;
         for(File file : fileList)
             if(file.getName().contains(imageName))
@@ -122,17 +150,28 @@ public class QPHRMRetrieveFromHRM {
         return filesDeleted;
     }
 
+    /**
+     * returns the first file that contains image name, with the specified suffix.
+     *
+     * @param imagePath
+     * @param suffix
+     * @return
+     */
     private static File getResultsFile(String imagePath, String suffix){
         File imageFile = new File(imagePath);
+
+        // get image name without extension
         int extensionPosition = imageFile.getName().lastIndexOf(".");
         String imageName = imageFile.getName().substring(0, extensionPosition);
 
+        // list all files in the parent folder
         File[] files = imageFile.getParentFile().listFiles();
         if(files == null) {
             logger.warn("There is not file in directory "+imageFile.getParentFile());
             return null;
         }
 
+        // extract only file with image name and suffix
         List<File> parametersFile = Arrays.stream(files).filter(e -> e.getName().endsWith(suffix) && e.getName().contains(imageName)).collect(Collectors.toList());
 
         if(!parametersFile.isEmpty())
@@ -143,6 +182,18 @@ public class QPHRMRetrieveFromHRM {
         }
     }
 
+    /**
+     * Add the deconvolved image to the current QuPath project.
+     * Add to this image all metatdata parsed from the .parameters.txt file
+     *
+     * This code has been copied from qupath.lib.gui.commands.ProjectImportImagesCommand.promptToImportImages()
+     *
+     * @param qupath
+     * @param imageServerBuilder
+     * @param imageURI URI of the deconvolved image
+     * @param keyVals
+     * @throws IOException
+     */
     public static void toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI, Map<String, String> keyVals) throws IOException {
         List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
         Project<BufferedImage> project = qupath.getProject();
@@ -224,6 +275,12 @@ public class QPHRMRetrieveFromHRM {
         }
     }
 
+    /**
+     * Establish the OMERO connection. If the default host is empty, then it asks it to the user.
+     *
+     * @param host
+     * @return
+     */
     private static OmeroRawClient askForOmeroConnection(String host){
         if (host.equals("")){
             GridPane gp = new GridPane();
@@ -260,6 +317,13 @@ public class QPHRMRetrieveFromHRM {
     }
 
 
+    /**
+     * returns the list of available deconvolved images in the QuPath folder of the user HRM-Share folder.
+     *
+     * @param root
+     * @param owner
+     * @return
+     */
     private static Map<String, String> listFileToUpload(String root, String owner){
         // check existence of the root folder
         if(!new File(root).exists()){Dialogs.showErrorNotification("List files to upload","Path "+root+" does not exists"); return new HashMap<>();}
@@ -294,6 +358,13 @@ public class QPHRMRetrieveFromHRM {
     }
 
 
+    /**
+     * search deconvolved images in sub-folders
+     *
+     * @param directory
+     * @param typeName
+     * @param imageTypeMap
+     */
     private static void recursiveFileListing(File directory, String typeName, Map<String, String> imageTypeMap) {
         // Get all files from a directory.
         File[] fList = directory.listFiles();
@@ -308,7 +379,13 @@ public class QPHRMRetrieveFromHRM {
     }
 
 
-
+    /**
+     * parse the html-encoded .parameters.txt file and
+     * return a map of image and restoration parameters of the deconvolution
+     *
+     * @param file
+     * @return
+     */
     public static Map<String, Map<String, String>> parseSummaryFile(File file)  {
         Map<String, Map<String, String>> nameSpaceKeyValueMap = new TreeMap<>();
 
@@ -332,10 +409,12 @@ public class QPHRMRetrieveFromHRM {
                 reducedParameters.forEach(parameter->{
                     Element element = parameter.firstElementChild();
                     if(element != null) {
+                        // parse the key, value and channel
                         String param = element.text();
                         String channel = parameter.after(element).firstElementChild().text();
                         String value = parameter.lastElementChild().text();
 
+                        // check if the parameter is channel-dependent
                         if(channel.equals("All"))
                             keyValues.put(param, value);
                         else

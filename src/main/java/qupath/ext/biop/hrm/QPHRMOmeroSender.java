@@ -13,9 +13,13 @@ import java.io.File;
 import java.util.Collection;
 
 public class QPHRMOmeroSender implements QPHRMSender {
-
+    /** path to the HRM-user folder where to save the image */
     private String destinationFolder = "";
+
+    /** image to send to HRM */
     private OmeroRawImageServer image;
+
+    /** OMERO client */
     private OmeroRawClient client;
 
     final private int SKIPPED = 2;

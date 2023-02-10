@@ -15,12 +15,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-
+/**
+ * Retrieve deconvolved images from HRM and send them back in the folder of the raw image.
+ * Add the deconvolved images to the current QuPath project, with metadata
+ */
 public class QPHRMLocalRetriever implements QPHRMRetriever {
     private final static Logger logger = LoggerFactory.getLogger(QPHRMLocalRetriever.class);
+
+    /** Deconvolved image */
     private File imageToSend;
+
+    /** Parent folder of the raw image */
     private File target;
+
+    /** Image and restoration parameters of the deconvolution */
     private Map<String, Map<String, String>> metadata;
+
     @Override
     public boolean sendBack() {
         try {
@@ -54,12 +64,12 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
                     "Cannot create the folder "+this.target.getAbsolutePath()+
                             " to copy files from "+this.imageToSend.getParentFile().getAbsolutePath());
         }
-
         return false;
     }
 
     @Override
     public boolean toQuPath(QuPathGUI qupath) {
+        // get image uri
         String imageURI = this.target.getAbsolutePath() + File.separator + this.imageToSend.getName();
 
         // check if the image within the target folder exists

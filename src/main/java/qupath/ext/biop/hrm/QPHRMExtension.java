@@ -8,13 +8,12 @@ import qupath.lib.gui.extensions.GitHubProject;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.MenuTools;
 
-
+/**
+ * Extension to manage HRM jobs from a QuPath project
+ */
 public class QPHRMExtension implements QuPathExtension, GitHubProject {
-
     private final static Logger logger = LoggerFactory.getLogger(QPHRMExtension.class);
-
     private static boolean alreadyInstalled = false;
-
 
     @Override
     public void installExtension(QuPathGUI qupath) {

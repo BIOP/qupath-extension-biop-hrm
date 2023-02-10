@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Optional;
 
 public class QPHRMSendToHRMCommand implements Runnable {
-
     private final QuPathGUI qupath;
     private boolean overwriteHrmData = false;
     public QPHRMSendToHRMCommand(QuPathGUI qupath) {
@@ -28,12 +27,15 @@ public class QPHRMSendToHRMCommand implements Runnable {
     public void run() {
         Project<BufferedImage> project = qupath.getProject();
 
+        // check if a project is open
         if (project == null) {
             Dialogs.showNoProjectError("Script editor");
             return;
         }
 
-        /** Code taken as is from Pete Bankhead
+        /**
+         * Build teh GUI
+         * Code taken as is from Pete Bankhead
          * https://github.com/qupath/qupath/blob/7548759fb102a33be8cac6a21c9d7726a69bdbbd/qupath-gui-fx/src/main/java/qupath/lib/gui/scripting/DefaultScriptEditor.java#L1518
          * */
         ArrayList<ProjectImageEntry<BufferedImage>> images = new ArrayList<ProjectImageEntry<BufferedImage>>();
@@ -67,9 +69,14 @@ public class QPHRMSendToHRMCommand implements Runnable {
         if (images.isEmpty())
             return;
 
+        // get images to send
         List<ProjectImageEntry<BufferedImage>> imagesToSend = new ArrayList<>(images);
 
-        int[] sentImages = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData);
+        // set the root folder
+        String rootFolder = "C:\\Users\\dornier\\Downloads";//"\\svraw1.epfl.ch\\ptbiop\\HRM-Share";
+
+        // send images
+        int[] sentImages = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData, rootFolder);
 
         Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
                 sentImages[0],
@@ -79,6 +86,5 @@ public class QPHRMSendToHRMCommand implements Runnable {
                 sentImages[1],
                 imagesToSend.size(),
                 (sentImages[1] == 1 ? "was" : "were")));
-
     }
 }
