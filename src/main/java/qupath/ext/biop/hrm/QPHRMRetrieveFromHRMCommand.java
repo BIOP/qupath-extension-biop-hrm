@@ -36,7 +36,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         labUsername.setLabelFor(tfUsername);
 
         Label labHost = new Label("OMERO Host (https://hostname)");
-        TextField tfHost = new TextField("https://omero-poc.epfl.ch");
+        TextField tfHost = new TextField("https://omero-server.epfl.ch");
         labHost.setLabelFor(tfHost);
         labHost.setDisable(true);
         tfHost.setDisable(true);
@@ -95,7 +95,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         }
 
         // set the root folder
-        String root = "C:\\Users\\dornier\\Downloads";//"\\\\svraw1.epfl.ch\\ptbiop\\HRM-Share";
+        String root = "\\\\svraw1.epfl.ch\\ptbiop\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
 
         // retrieve images
         boolean sentImages = QPHRMRetrieveFromHRM.retrieve(qupath, root, username, deleteOnHRM, host);

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 public class QPHRMOmeroRetriever implements QPHRMRetriever {
     private final static Logger logger = LoggerFactory.getLogger(QPHRMOmeroRetriever.class);
@@ -85,6 +86,9 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
                 }
             } else {
                 Dialogs.showWarningNotification("Existing images on OMERO", "Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
+                ImageData image = imagesWithinDataset.stream().filter(e -> e.getName().equals(this.imageToSend.getName())).collect(Collectors.toList()).get(0);
+                this.imageId = image.getId();
+                return true;
             }
         } else {
             Dialogs.showErrorNotification("Un-existing object","The dataset "+this.target+" does not exist on OMERO");

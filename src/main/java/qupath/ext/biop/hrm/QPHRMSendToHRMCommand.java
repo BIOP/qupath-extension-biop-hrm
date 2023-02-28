@@ -73,7 +73,7 @@ public class QPHRMSendToHRMCommand implements Runnable {
         List<ProjectImageEntry<BufferedImage>> imagesToSend = new ArrayList<>(images);
 
         // set the root folder
-        String rootFolder = "C:\\Users\\dornier\\Downloads";//"\\svraw1.epfl.ch\\ptbiop\\HRM-Share";
+        String rootFolder = "\\\\svraw1.epfl.ch\\ptbiop\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
 
         // send images
         int[] sentImages = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData, rootFolder);
