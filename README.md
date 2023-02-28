@@ -16,7 +16,7 @@ It is not compatible with earlier QuPath versions.
 - If you haven't installed any extensions before, you'll be prompted to select a QuPath user directory.
 The extension will then be copied to a location inside that directory.
 
-- The extension needs to have `qupath-extension-biop-omero` installed. Follow the [installation steps](https://github.com/BIOP/qupath-extension-biop-omero#readme) provided for this extension.
+- The extension needs to have `qupath-extension-biop-omero` installed. Follow the [installation steps](https://github.com/BIOP/qupath-extension-biop-omero#readme) provided for this extension. **BE CAREFUL : Only versions v0.3.2 or higher are compatible with this extension.**
 
 *Update*
 - You might then need to restart QuPath (but not your computer).
