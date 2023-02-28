@@ -141,7 +141,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
                     parentFolder = parentFolder.replace("file:\\","");
 
                     // set the deconvolved folder name and path
-                    String deconvolvedFolderPath = parentFolder + File.separator + "Deconvolved" + hrmCode;
+                    String deconvolvedFolderPath = parentFolder + File.separator + finalImage.getImageName() + "_Deconvolved" + hrmCode;
                     this.target = new File(deconvolvedFolderPath);
 
                     return true;

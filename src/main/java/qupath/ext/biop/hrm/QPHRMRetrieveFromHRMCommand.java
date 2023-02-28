@@ -58,11 +58,11 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
             tfHost.setDisable(!chkOmero.selectedProperty().get());
         });
 
-        CheckBox chkOverwrite = new CheckBox("Overwrite data on HRM");
-        chkOverwrite.setMinWidth(CheckBox.USE_PREF_SIZE);
-        chkOverwrite.setSelected(false);
-        chkOverwrite.selectedProperty().addListener((v, o, n) -> {
-            labelSameImageWarning.setVisible(chkOverwrite.selectedProperty().get());
+        CheckBox chkDelete = new CheckBox("Delete data on HRM");
+        chkDelete.setMinWidth(CheckBox.USE_PREF_SIZE);
+        chkDelete.setSelected(false);
+        chkDelete.selectedProperty().addListener((v, o, n) -> {
+            labelSameImageWarning.setVisible(chkDelete.selectedProperty().get());
         });
 
         int row = 0;
@@ -71,7 +71,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         pane.add(chkOmero,0, row++);
         pane.add(labHost, 0, row);
         pane.add(tfHost, 1, row++);
-        pane.add(chkOverwrite,0, row++);
+        pane.add(chkDelete,0, row++);
         pane.add(labelSameImageWarning,0,row);
 
         pane.setHgap(5);
@@ -82,7 +82,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
 
         // get the user entries
         String username = tfUsername.getText();
-        boolean deleteOnHRM = chkOverwrite.selectedProperty().get();
+        boolean deleteOnHRM = chkDelete.selectedProperty().get();
         String host;
         if(chkOmero.selectedProperty().get())
             host = tfHost.getText();

@@ -29,13 +29,14 @@ public class QPHRMSendToHRM {
 
         // get image servers
         List<ImageServer<BufferedImage>> imageServers = new ArrayList<>();
-        images.forEach(image -> {
+        for(ProjectImageEntry<BufferedImage> image : images) {
             try {
                 imageServers.add(image.readImageData().getServer());
             } catch (Exception e) {
                 Dialogs.showErrorMessage("Reading image server", "Cannot Read Image data for image " + image.getImageName());
+                return null;
             }
-        });
+        }
 
         // filter omero and local images
         List<ImageServer<BufferedImage>> omeroServersList = imageServers.stream().filter(e -> e instanceof OmeroRawImageServer).collect(Collectors.toList());

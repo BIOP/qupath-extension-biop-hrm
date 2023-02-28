@@ -56,7 +56,7 @@ public class QPHRMLocalSender implements QPHRMSender {
                 return ERROR;
             }
         } else{
-            Dialogs.showErrorNotification("Copying local file","Destination folder "+this.destinationFolder+" does not exists");
+            //Dialogs.showErrorNotification("Copying local file","Destination folder "+this.destinationFolder+" does not exists");
             return ERROR;
         }
     }
