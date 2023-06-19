@@ -104,7 +104,7 @@ public class QPHRMRetrieveFromHRM {
                     break;
                 default:
                     Dialogs.showWarningNotification("Type does not exists", "Type "+entry.getValue()+" is not supported for image "+entry.getKey());
-                    return false;
+                    continue;
             }
 
             // send back deconvolved image to their location and to QuPath project
@@ -132,7 +132,7 @@ public class QPHRMRetrieveFromHRM {
         File imageFile = new File(filePath);
         String imageName = imageFile.getName();
 
-        // remove extension
+        // remove file extension
         imageName = imageName.substring(0,imageName.lastIndexOf("."));
 
         // list all files in the parent folder
@@ -370,7 +370,7 @@ public class QPHRMRetrieveFromHRM {
         File[] fList = directory.listFiles();
         if(fList != null)
             for (File file : fList) {
-                if (file.isFile() && file.getName().endsWith(".dv")) { // TODO change to .ids
+                if (file.isFile() && file.getName().endsWith(".ids")) { // TODO change to .ids
                     imageTypeMap.put(file.getAbsolutePath(), typeName);
                 } else if (file.isDirectory()) {
                     recursiveFileListing(file, typeName, imageTypeMap);
