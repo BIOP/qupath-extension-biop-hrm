@@ -3,6 +3,8 @@ package qupath.ext.biop.hrm;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
@@ -14,6 +16,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class QPHRMSendToHRM {
+
+    private final static Logger logger = LoggerFactory.getLogger(QPHRMSendToHRM.class);
 
     /**
      * sends a list of images to HRM folder
@@ -59,6 +63,11 @@ public class QPHRMSendToHRM {
 
             if(username.equals(""))
                 username = ((OmeroRawImageServer) imageServer).getClient().getLoggedInUser().getOmeName().getValue();
+            try {
+                imageServer.close();
+            }catch(Exception e){
+                logger.error("Cannot close the reader");
+            }
         }
 
         // local images to send
@@ -70,6 +79,12 @@ public class QPHRMSendToHRM {
                     .copy(overwrite);
             nSentImages += hasBeenSent == 1 ? 1 : 0;
             nSkippedImages += hasBeenSent == 2 ? 1 : 0;
+
+            try {
+                imageServer.close();
+            }catch(Exception e){
+                logger.error("Cannot close the reader");
+            }
         }
 
         return (new int[]{nSentImages, nSkippedImages});
