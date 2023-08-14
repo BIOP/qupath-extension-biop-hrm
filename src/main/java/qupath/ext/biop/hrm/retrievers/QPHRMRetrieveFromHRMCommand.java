@@ -1,4 +1,4 @@
-package qupath.ext.biop.hrm;
+package qupath.ext.biop.hrm.retrievers;
 
 import javafx.geometry.Pos;
 import javafx.scene.control.CheckBox;

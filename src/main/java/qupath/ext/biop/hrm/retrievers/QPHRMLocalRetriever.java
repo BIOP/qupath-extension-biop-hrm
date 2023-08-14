@@ -1,4 +1,4 @@
-package qupath.ext.biop.hrm;
+package qupath.ext.biop.hrm.retrievers;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;

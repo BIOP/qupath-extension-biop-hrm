@@ -1,4 +1,4 @@
-package qupath.ext.biop.hrm;
+package qupath.ext.biop.hrm.senders;
 
 import qupath.lib.images.servers.ImageServer;
 import java.awt.image.BufferedImage;

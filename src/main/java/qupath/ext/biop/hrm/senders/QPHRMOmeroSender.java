@@ -1,4 +1,4 @@
-package qupath.ext.biop.hrm;
+package qupath.ext.biop.hrm.senders;
 
 import omero.gateway.model.DatasetData;
 import omero.gateway.model.ProjectData;
@@ -37,6 +37,7 @@ public class QPHRMOmeroSender implements QPHRMSender {
     @Override
     public int copy(boolean overwrite) {
         File destinationFolderFile = new File(this.destinationFolder);
+
 
         // check if the destination folder exists
         if(destinationFolderFile.exists()) {

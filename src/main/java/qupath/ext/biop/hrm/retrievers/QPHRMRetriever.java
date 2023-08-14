@@ -1,4 +1,4 @@
-package qupath.ext.biop.hrm;
+package qupath.ext.biop.hrm.retrievers;
 
 import qupath.lib.gui.QuPathGUI;
 import java.util.Map;

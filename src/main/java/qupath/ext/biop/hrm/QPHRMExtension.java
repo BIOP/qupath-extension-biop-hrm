@@ -2,6 +2,8 @@ package qupath.ext.biop.hrm;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.biop.hrm.retrievers.QPHRMRetrieveFromHRMCommand;
+import qupath.ext.biop.hrm.senders.QPHRMSendToHRMCommand;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.GitHubProject;

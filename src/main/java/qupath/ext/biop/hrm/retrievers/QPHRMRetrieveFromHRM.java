@@ -1,4 +1,4 @@
-package qupath.ext.biop.hrm;
+package qupath.ext.biop.hrm.retrievers;
 
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;

@@ -1,4 +1,4 @@
-package qupath.ext.biop.hrm;
+package qupath.ext.biop.hrm.retrievers;
 
 import omero.gateway.model.DatasetData;
 import omero.gateway.model.ImageData;

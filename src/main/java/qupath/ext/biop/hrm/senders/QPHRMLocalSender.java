@@ -1,6 +1,7 @@
-package qupath.ext.biop.hrm;
+package qupath.ext.biop.hrm.senders;
 
 import org.apache.commons.io.FileUtils;
+import qupath.ext.biop.hrm.senders.QPHRMSender;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 
