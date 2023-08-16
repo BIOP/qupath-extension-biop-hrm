@@ -93,6 +93,8 @@ public class QPHRMSendToHRM {
 
         // Create a background Task
         Task<Void> task = new Task<Void>() {
+            int nSentImages = 0;
+            int nSkippedImages = 0;
             @Override
             protected Void call() throws Exception {
 
@@ -106,7 +108,9 @@ public class QPHRMSendToHRM {
                         updateMessage(String.valueOf(i + 1));
                         if (finalUsername.equals(""))
                             finalUsername = ((OmeroRawImageServer) omeroServersList.get(i)).getClient().getLoggedInUser().getOmeName().getValue();
-                        int[] sentImages = downloadOmeroImage(omeroServersList.get(i), rootFolder, overwrite, finalUsername);
+                        int[] sentImages = downloadOmeroImage(omeroServersList.get(i), rootFolder, overwrite);
+                        nSentImages += sentImages[0];
+                        nSkippedImages += sentImages[1];
                     }
                 }
 
@@ -116,28 +120,38 @@ public class QPHRMSendToHRM {
                         updateProgress(j + 1, nbImagesToDownload);
                         updateMessage(String.valueOf(j + 1));
                         int[] sentImages = downloadLocalImage(omeroServersList.get(i), rootFolder, overwrite, finalUsername);
+                        nSentImages += sentImages[0];
+                        nSkippedImages += sentImages[1];
                     }
                 }
-
                 return null;
             }
 
             @Override protected void succeeded() {
                 super.succeeded();
                 updateMessage("Done!");
+                Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
+                        nSentImages,
+                        nbImagesToDownload,
+                        (nSentImages == 1 ? "image" : "images"),
+                        (nSentImages == 1 ? "was" : "were"),
+                        nSkippedImages,
+                        nbImagesToDownload,
+                        (nSkippedImages == 1 ? "was" : "were")));
             }
 
             @Override protected void cancelled() {
                 super.cancelled();
                 updateMessage("Cancelled!");
+                Dialogs.showWarningNotification("Sending To HRM","The download has been cancelled");
             }
 
             @Override protected void failed() {
                 super.failed();
                 updateMessage("Failed!");
+                Dialogs.showErrorNotification("Sending To HRM","An error has occurs during the download");
             }
         };
-
 
 
         // This method allows us to handle any Exceptions thrown by the task
@@ -145,10 +159,6 @@ public class QPHRMSendToHRM {
             wse.getSource().getException().printStackTrace();
         });
 
-        // If the task completed successfully, perform other updates here
-        task.setOnSucceeded(wse -> {
-            System.out.println("Done!");
-        });
 
         // Before starting our task, we need to bind our UI values to the properties on the task
         progressBar.progressProperty().bind(task.progressProperty());
@@ -161,15 +171,12 @@ public class QPHRMSendToHRM {
         return task;
     }
 
-    private static int[] downloadOmeroImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite, String username){
+    private static int[] downloadOmeroImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite){
         int hasBeenSent = new QPHRMOmeroSender()
                 .setClient(((OmeroRawImageServer) imageServer).getClient())
                 .setImage(imageServer)
                 .buildDestinationFolder(rootFolder)
                 .copy(overwrite);
-
-        if (username.equals(""))
-            username = ((OmeroRawImageServer) imageServer).getClient().getLoggedInUser().getOmeName().getValue();
         try {
             imageServer.close();
         } catch (Exception e) {
@@ -252,7 +259,6 @@ public class QPHRMSendToHRM {
         );
 
         // Show the Stage
-
         primaryStage.setWidth(300);
         primaryStage.setHeight(200);
         primaryStage.setScene(new Scene(root));
