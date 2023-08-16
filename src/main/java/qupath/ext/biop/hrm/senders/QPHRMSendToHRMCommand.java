@@ -1,5 +1,6 @@
 package qupath.ext.biop.hrm.senders;
 
+import javafx.application.Platform;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;
@@ -73,12 +74,12 @@ public class QPHRMSendToHRMCommand implements Runnable {
         List<ProjectImageEntry<BufferedImage>> imagesToSend = new ArrayList<>(images);
 
         // set the root folder
-        String rootFolder = "\\\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
+        String rootFolder = "C:\\Users\\dornier\\Downloads";//"\\\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
 
         // send images
-        int[] sentImages = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData, rootFolder);
+        int[] sentImages = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData, rootFolder, qupath);
 
-        if(!(sentImages == null))
+        /*if(!(sentImages == null))
             Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
                     sentImages[0],
                     imagesToSend.size(),
@@ -86,6 +87,7 @@ public class QPHRMSendToHRMCommand implements Runnable {
                     (sentImages[0] == 1 ? "was" : "were"),
                     sentImages[1],
                     imagesToSend.size(),
-                    (sentImages[1] == 1 ? "was" : "were")));
+                    (sentImages[1] == 1 ? "was" : "were")));*/
+
     }
 }
