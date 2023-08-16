@@ -77,17 +77,6 @@ public class QPHRMSendToHRMCommand implements Runnable {
         String rootFolder = "C:\\Users\\dornier\\Downloads";//"\\\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
 
         // send images
-        int[] sentImages = QPHRMSendToHRM.send(imagesToSend, overwriteHrmData, rootFolder, qupath);
-
-        /*if(!(sentImages == null))
-            Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
-                    sentImages[0],
-                    imagesToSend.size(),
-                    (sentImages[0] == 1 ? "image" : "images"),
-                    (sentImages[0] == 1 ? "was" : "were"),
-                    sentImages[1],
-                    imagesToSend.size(),
-                    (sentImages[1] == 1 ? "was" : "were")));*/
-
+        QPHRMSendToHRM.send(imagesToSend, overwriteHrmData, rootFolder);
     }
 }

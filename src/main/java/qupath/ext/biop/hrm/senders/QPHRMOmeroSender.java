@@ -21,11 +21,9 @@ public class QPHRMOmeroSender implements QPHRMSender {
 
     /** OMERO client */
     private OmeroRawClient client;
-
-    final private int SKIPPED = 2;
-    final private int COPIED = 1;
-    final private int FAILED = 0;
-    final private int ERROR = -1;
+    private boolean isSent = false;
+    private boolean isFailed = false;
+    private boolean isSkipped = false;
 
     public QPHRMOmeroSender(){
 
@@ -35,27 +33,44 @@ public class QPHRMOmeroSender implements QPHRMSender {
     public String getDestinationFolder() { return this.destinationFolder; }
 
     @Override
-    public int copy(boolean overwrite) {
-        File destinationFolderFile = new File(this.destinationFolder);
+    public boolean isSent() {
+        return this.isSent;
+    }
 
+    @Override
+    public boolean isSkipped() {
+        return this.isSkipped;
+    }
+
+    @Override
+    public boolean isFailed() {
+        return this.isFailed;
+    }
+
+    @Override
+    public QPHRMOmeroSender copy(boolean overwrite) {
+        File destinationFolderFile = new File(this.destinationFolder);
 
         // check if the destination folder exists
         if(destinationFolderFile.exists()) {
             Long omeroId = this.image.getId();
             // check if the image already exists on HRM
             String imageName = OmeroRawTools.readOmeroImage(this.client, omeroId).getName();
-            if(overwrite || !(new File(this.destinationFolder + File.separator + imageName).exists()))
+            if(overwrite || !(new File(this.destinationFolder + File.separator + imageName).exists())) {
                 // copy image in HRM folder
-                return (OmeroRawTools.downloadImage(this.client, omeroId, destinationFolderFile.toString()) ? COPIED : FAILED);
-            return SKIPPED;
+                if(OmeroRawTools.downloadImage(this.client, omeroId, destinationFolderFile.toString()))
+                    this.isSent = true;
+                else this.isFailed = true;
+            }else this.isSkipped = true;
         } else{
             Dialogs.showErrorNotification("Copying OMERO file","Destination folder "+this.destinationFolder+" does not exists");
-            return ERROR;
+            this.isFailed = true;
         }
+        return this;
     }
 
     @Override
-    public QPHRMSender buildDestinationFolder(String rootPath) {
+    public QPHRMOmeroSender buildDestinationFolder(String rootPath) {
         File rootPathFile = new File(rootPath);
         // check the root directory
         if(!rootPathFile.isDirectory())
@@ -117,12 +132,12 @@ public class QPHRMOmeroSender implements QPHRMSender {
     }
 
     @Override
-    public QPHRMSender setImage(ImageServer<BufferedImage> image) {
+    public QPHRMOmeroSender setImage(ImageServer<BufferedImage> image) {
         this.image = (OmeroRawImageServer) image;
         return this;
     }
 
-    public QPHRMSender setClient(OmeroRawClient client){
+    public QPHRMOmeroSender setClient(OmeroRawClient client){
         this.client = client;
         return this;
     }

@@ -22,9 +22,9 @@ public class QPHRMLocalSender implements QPHRMSender {
 
     /** HRM username */
     private String username = "";
-    final private int SKIPPED = 2;
-    final private int COPIED = 1;
-    final private int ERROR = -1;
+    private boolean isSent = false;
+    private boolean isFailed = false;
+    private boolean isSkipped = false;
 
     public QPHRMLocalSender(){
 
@@ -36,7 +36,22 @@ public class QPHRMLocalSender implements QPHRMSender {
     }
 
     @Override
-    public int copy(boolean overwrite) {
+    public boolean isSent() {
+        return this.isSent;
+    }
+
+    @Override
+    public boolean isSkipped() {
+        return this.isSkipped;
+    }
+
+    @Override
+    public boolean isFailed() {
+        return this.isFailed;
+    }
+
+    @Override
+    public QPHRMLocalSender copy(boolean overwrite) {
         File destinationFolderPath = new File(this.destinationFolder);
 
         // check if the destination folder exists
@@ -49,21 +64,20 @@ public class QPHRMLocalSender implements QPHRMSender {
                 if(overwrite || !(new File(this.destinationFolder + File.separator + sourceImage.getName()).exists())) {
                     // copy the image into HRM folder
                     FileUtils.copyFileToDirectory(sourceImage, destinationFolderPath);
-                    return COPIED;
-                }
-                return SKIPPED;
+                    this.isSent = true;
+                } else this.isSkipped = true;
             } catch (IOException e) {
                 Dialogs.showErrorNotification("Copy File to HRM","Cannot copy "+uri+" to "+this.destinationFolder);
-                return ERROR;
+                this.isFailed = true;
             }
         } else{
-            //Dialogs.showErrorNotification("Copying local file","Destination folder "+this.destinationFolder+" does not exists");
-            return ERROR;
+            this.isFailed = true;
         }
+        return this;
     }
 
     @Override
-    public QPHRMSender buildDestinationFolder(String rootPath) {
+    public QPHRMLocalSender buildDestinationFolder(String rootPath) {
         File rootPathFile = new File(rootPath);
         // check if HRM share folder exists
         if(!rootPathFile.isDirectory())
@@ -94,12 +108,12 @@ public class QPHRMLocalSender implements QPHRMSender {
     }
 
     @Override
-    public QPHRMSender setImage(ImageServer<BufferedImage> image) {
+    public QPHRMLocalSender setImage(ImageServer<BufferedImage> image) {
         this.image = image;
         return this;
     }
 
-    public QPHRMSender setUsername(String username){
+    public QPHRMLocalSender setUsername(String username){
         this.username = username;
         return this;
     }

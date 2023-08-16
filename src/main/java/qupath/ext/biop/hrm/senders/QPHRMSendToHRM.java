@@ -1,39 +1,37 @@
 package qupath.ext.biop.hrm.senders;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.collections.ObservableList;
+import javafx.application.Platform;
 import javafx.concurrent.Task;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Background;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
-import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-//import qupath.ext.biop.hrm.PluginRunnerFX;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.projects.ProjectImageEntry;
 
-import javax.swing.UIManager;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class QPHRMSendToHRM {
@@ -44,6 +42,7 @@ public class QPHRMSendToHRM {
 
     // Create a label to show current progress %
     private static Label lblProgress = new Label();
+    protected static Label resultsFolder = new Label();
 
     /**
      * sends a list of images to HRM folder
@@ -53,9 +52,7 @@ public class QPHRMSendToHRM {
      * @param rootFolder
      * @return
      */
-    public static int[] send(List<ProjectImageEntry<BufferedImage>> images, boolean overwrite, String rootFolder, QuPathGUI quPathGUI) {
-        int nSentImages = 0;
-        int nSkippedImages = 0;
+    public static void send(List<ProjectImageEntry<BufferedImage>> images, boolean overwrite, String rootFolder) {
 
         // get image servers
         List<ImageServer<BufferedImage>> imageServers = new ArrayList<>();
@@ -64,7 +61,7 @@ public class QPHRMSendToHRM {
                 imageServers.add(image.readImageData().getServer());
             } catch (Exception e) {
                 Dialogs.showErrorMessage("Reading image server", "Cannot Read Image data for image " + image.getImageName());
-                return null;
+                return;
             }
         }
 
@@ -79,9 +76,7 @@ public class QPHRMSendToHRM {
 
         int nbImagesToDownload = omeroServersList.size() + localServersList.size();
         Task<Void> task = startProcess(omeroServersList, localServersList, nbImagesToDownload, rootFolder, username, overwrite);
-        buildDialog(nbImagesToDownload, task);
-
-        return (new int[]{nSentImages, nSkippedImages});
+        buildDialog(task);
     }
 
 
@@ -104,24 +99,26 @@ public class QPHRMSendToHRM {
                 for(i = 0; i <omeroServersList.size(); i++){
                     if(!isCancelled()) {
                         // Update our progress and message properties
+                        updateMessage(i + 1 + " / " + nbImagesToDownload);
                         updateProgress(i + 1, nbImagesToDownload);
-                        updateMessage(String.valueOf(i + 1));
                         if (finalUsername.equals(""))
                             finalUsername = ((OmeroRawImageServer) omeroServersList.get(i)).getClient().getLoggedInUser().getOmeName().getValue();
-                        int[] sentImages = downloadOmeroImage(omeroServersList.get(i), rootFolder, overwrite);
-                        nSentImages += sentImages[0];
-                        nSkippedImages += sentImages[1];
+                        QPHRMOmeroSender qphrmOmeroSender = downloadOmeroImage(omeroServersList.get(i), rootFolder, overwrite);
+                        nSentImages += qphrmOmeroSender.isSent() ? 1 : 0;
+                        nSkippedImages += qphrmOmeroSender.isSkipped() ? 1 : 0;
+                        updateTitle(qphrmOmeroSender.getDestinationFolder());
                     }
                 }
 
                 for(int j = i; j < localServersList.size(); j++){
                     if(!isCancelled()) {
                         // Update our progress and message properties
+                        updateMessage(j + 1 + " / " + nbImagesToDownload);
                         updateProgress(j + 1, nbImagesToDownload);
-                        updateMessage(String.valueOf(j + 1));
-                        int[] sentImages = downloadLocalImage(omeroServersList.get(i), rootFolder, overwrite, finalUsername);
-                        nSentImages += sentImages[0];
-                        nSkippedImages += sentImages[1];
+                        QPHRMLocalSender qphrmLocalSender = downloadLocalImage(omeroServersList.get(i), rootFolder, overwrite, finalUsername);
+                        nSentImages += qphrmLocalSender.isSent() ? 1 : 0;
+                        nSkippedImages += qphrmLocalSender.isSkipped() ? 1 : 0;
+                        updateTitle(qphrmLocalSender.getDestinationFolder());
                     }
                 }
                 return null;
@@ -163,6 +160,10 @@ public class QPHRMSendToHRM {
         // Before starting our task, we need to bind our UI values to the properties on the task
         progressBar.progressProperty().bind(task.progressProperty());
         lblProgress.textProperty().bind(task.messageProperty());
+        resultsFolder.textProperty().bind(task.titleProperty());
+
+
+
 
         // Now, start the task on a background thread
         Thread thread = new Thread(task);
@@ -171,8 +172,8 @@ public class QPHRMSendToHRM {
         return task;
     }
 
-    private static int[] downloadOmeroImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite){
-        int hasBeenSent = new QPHRMOmeroSender()
+    private static QPHRMOmeroSender downloadOmeroImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite){
+        QPHRMOmeroSender qphrmOmeroSender = new QPHRMOmeroSender()
                 .setClient(((OmeroRawImageServer) imageServer).getClient())
                 .setImage(imageServer)
                 .buildDestinationFolder(rootFolder)
@@ -183,12 +184,12 @@ public class QPHRMSendToHRM {
             logger.error("Cannot close the OMERO reader");
         }
 
-        return (new int[]{(hasBeenSent == 1 ? 1 : 0), (hasBeenSent == 2 ? 1 : 0)});
+        return qphrmOmeroSender;
     }
 
 
-    private static int[] downloadLocalImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite, String username){
-        int hasBeenSent = new QPHRMLocalSender()
+    private static QPHRMLocalSender downloadLocalImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite, String username){
+        QPHRMLocalSender qphrmLocalSender = new QPHRMLocalSender()
                 .setUsername(username)
                 .setImage(imageServer)
                 .buildDestinationFolder(rootFolder)
@@ -199,10 +200,8 @@ public class QPHRMSendToHRM {
             logger.error("Cannot close the local reader");
         }
 
-        return (new int[]{(hasBeenSent == 1 ? 1 : 0), (hasBeenSent == 2 ? 1 : 0)});
+        return qphrmLocalSender;
     }
-
-
 
     /**
      * ask the HRM username
@@ -229,7 +228,7 @@ public class QPHRMSendToHRM {
         return tfUsername.getText();
     }
 
-    private static void buildDialog(int nbImagesToDownload, Task<Void> task) {
+    private static void buildDialog(Task<Void> task) {
         // Simple interface
         VBox root = new VBox(5);
         root.setPadding(new Insets(10));
@@ -243,6 +242,29 @@ public class QPHRMSendToHRM {
             primaryStage.close();
 
         });
+        lblProgress.setAlignment(Pos.CENTER);
+
+        resultsFolder.setOnMouseClicked(new EventHandler<MouseEvent>() {
+            @Override
+            public void handle(MouseEvent mouseEvent) {
+                if(mouseEvent.getButton().equals(MouseButton.PRIMARY)){
+                    if(mouseEvent.getClickCount() == 2){
+                        StringSelection stringSelection = new StringSelection(resultsFolder.getText());
+                        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                        clipboard.setContents(stringSelection, null);
+
+                        resultsFolder.setTextFill(Color.WHITE);
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        resultsFolder.setTextFill(Color.BLACK);
+
+                    }
+                }
+            }
+        });
 
         // Add our controls to the scene
         root.getChildren().addAll(
@@ -251,8 +273,13 @@ public class QPHRMSendToHRM {
                     setAlignment(Pos.CENTER);
                     getChildren().addAll(
                             new Label("Download image: "),
-                            lblProgress,
-                            new Label(" / "+nbImagesToDownload)
+                            lblProgress
+                    );
+                }},
+                new HBox(5) {{
+                    setAlignment(Pos.CENTER);
+                    getChildren().addAll(
+                            resultsFolder
                     );
                 }},
                 button

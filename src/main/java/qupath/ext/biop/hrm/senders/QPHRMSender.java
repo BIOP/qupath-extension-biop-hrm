@@ -14,11 +14,29 @@ public interface QPHRMSender {
     String getDestinationFolder();
 
     /**
+     * if the image has been sent to HRM
+     * @return
+     */
+    boolean isSent();
+
+    /**
+     * if the image has been skipped because already on HRM server
+     * @return
+     */
+    boolean isSkipped();
+
+    /**
+     * if there is an issue during the sending process
+     * @return
+     */
+    boolean isFailed();
+
+    /**
      * Copy an image from QuPath to a destination folder
      * @param overwrite
      * @return
      */
-    int copy(boolean overwrite);
+    QPHRMSender copy(boolean overwrite);
 
     /**
      * set the path to the HRM destination folder
