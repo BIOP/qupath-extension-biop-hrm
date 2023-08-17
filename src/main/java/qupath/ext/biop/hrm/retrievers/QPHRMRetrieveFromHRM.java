@@ -16,6 +16,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -66,7 +67,8 @@ public class QPHRMRetrieveFromHRM {
     private final static Logger logger = LoggerFactory.getLogger(QPHRMRetrieveFromHRM.class);
     private static ProgressBar progressBar = new ProgressBar(0.0);
     private static Label lblProgress = new Label();
-    protected static Label resultsFolder = new Label();
+    private static Label lblMessage = new Label();
+    private static String message = "";
 
     /**
      * List deconvolved images and send them back to raw location and to QuPath project
@@ -78,11 +80,11 @@ public class QPHRMRetrieveFromHRM {
      * @param omeroHost
      * @return
      */
-    public static boolean retrieve(QuPathGUI qupath, String root, String owner, boolean deleteOnHRM, String omeroHost){
+    public static void retrieve(QuPathGUI qupath, String root, String owner, boolean deleteOnHRM, String omeroHost){
         // list all files retrieve in QuPath
         Map<String, String> imageTypeMap = listFileToUpload(root, owner);
         if(imageTypeMap.isEmpty())
-            return false;
+            return;
 
         // check if there is an OMERO connection to get and ask for one in case
         List<Map.Entry<String, String>> omeroList = imageTypeMap.entrySet()
@@ -94,56 +96,12 @@ public class QPHRMRetrieveFromHRM {
             client = askForOmeroConnection(omeroHost);
             if (client == null) {
                 Dialogs.showErrorMessage("OMERO Connection issue", "Cannot connect to OMERO server. No image will be retrieved from HRM");
-                return false;
+                return;
             }
         }
 
         Task<Void> task = startProcess(qupath, imageTypeMap, deleteOnHRM, imageTypeMap.size(), client);
         buildDialog(task);
-
-       /* // select the type of connection and choose the correct retriever
-        for(Map.Entry<String,String> entry : imageTypeMap.entrySet()){
-            // get the results file
-            File paramFile = getResultsFile(entry.getKey(), ".parameters.txt");
-
-            // parse the parameter file and extract key-value pairs
-            Map<String, Map<String, String>> metadata = new TreeMap<>();
-            if(paramFile != null)
-                metadata = parseSummaryFile(paramFile);
-
-            QPHRMRetriever retriever;
-            switch(entry.getValue().toLowerCase()){
-                case "omero":
-                    // get the log file
-                    File logFile = getResultsFile(entry.getKey(), ".log.txt");
-                    retriever = new QPHRMOmeroRetriever()
-                            .setImage(entry.getKey())
-                            .setClient(client)
-                            .setMetadata(metadata)
-                            .setLogFile(logFile);
-
-                    break;
-                case "local":
-                    retriever = new QPHRMLocalRetriever()
-                            .setImage(entry.getKey())
-                            .setMetadata(metadata);
-                    break;
-                default:
-                    Dialogs.showWarningNotification("Type does not exists", "Type "+entry.getValue()+" is not supported for image "+entry.getKey());
-                    continue;
-            }
-
-            // send back deconvolved image to their location and to QuPath project
-            if(retriever.buildTarget())
-                if(retriever.sendBack())
-                    if(retriever.toQuPath(qupath))
-                        if(deleteOnHRM)
-                            if(deleteAssociatedFiles(entry.getKey()))
-                                logger.info("Image"+entry.getKey()+" and associated files are deleted on HRM-Share folder");
-                            else
-                                logger.error("Cannot delete image "+entry.getKey()+" neither associated files");
-        }*/
-        return true;
     }
 
 
@@ -166,12 +124,14 @@ public class QPHRMRetrieveFromHRM {
             protected Void call() {
 
                 List<String> paths = new ArrayList<>(imageTypeMap.keySet());
+                message += "\n--- Minimal log window - Please look at the log file for more details ---";
+                updateTitle(message);
 
                 // select the type of connection and choose the correct retriever
                 for(int i = 0; i < paths.size(); i++){
                     // Update our progress and message properties
                     updateMessage(i + 1 + " / " + nbImagesToRetrieve);
-                    updateProgress(i + 1, nbImagesToRetrieve);
+                    updateProgress(i, nbImagesToRetrieve);
 
                     String path = paths.get(i);
                     String imageServerType = imageTypeMap.get(path);
@@ -202,46 +162,61 @@ public class QPHRMRetrieveFromHRM {
                                     .setMetadata(metadata);
                             break;
                         default:
-                            Dialogs.showWarningNotification("Type does not exists", "Type "+imageServerType+" is not supported for image "+path);
+                            String smallMessage = "Type " + imageServerType + " is not supported for image " + path;
+                            logger.warn(smallMessage);
+                            message += "\n" + smallMessage;
+                            updateTitle(message);
                             continue;
                     }
 
                     // send back deconvolved image to their location and to QuPath project
-                    if(retriever.buildTarget())
-                        if(retriever.sendBack())
-                            if(retriever.toQuPath(qupath))
-                                if(deleteOnHRM)
-                                    if(deleteAssociatedFiles(path))
-                                        logger.info("Image"+path+" and associated files are deleted on HRM-Share folder");
-                                    else
-                                        logger.error("Cannot delete image "+path+" neither associated files");
+                    if(retriever.buildTarget()) {
+                        if (retriever.sendBack()) {
+                            if (retriever.toQuPath(qupath)) {
+                                if (deleteOnHRM)
+                                    if (deleteAssociatedFiles(path))
+                                        logger.info("Image" + path + " and associated files are deleted on HRM-Share folder");
+                                    else {
+                                        String smallMessage = "Cannot delete image " + path + " neither associated files";
+                                        message += "\n" + smallMessage;
+                                        updateTitle(message);
+                                        logger.error(smallMessage);
+                                    }
+                            }else{
+                                String smallMessage = "Cannot add image to QuPath for" +path;
+                                message += "\n" + smallMessage;
+                                updateTitle(message);
+                            }
+                        }else{
+                            String smallMessage = "Cannot send back results for : " +path;
+                            message += "\n" + smallMessage;
+                            updateTitle(message);
+                        }
+                    }else{
+                        String smallMessage = "Cannot build target folder for : " +path;
+                        message += "\n" + smallMessage;
+                        updateTitle(message);
+                    }
                 }
                 return null;
             }
 
             @Override protected void succeeded() {
                 super.succeeded();
+                updateProgress(nbImagesToRetrieve, nbImagesToRetrieve);
                 updateMessage("Done!");
-                Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
-                        nSentImages,
-                        nbImagesToRetrieve,
-                        (nSentImages == 1 ? "image" : "images"),
-                        (nSentImages == 1 ? "was" : "were"),
-                        nSkippedImages,
-                        nbImagesToRetrieve,
-                        (nSkippedImages == 1 ? "was" : "were")));
             }
 
             @Override protected void cancelled() {
                 super.cancelled();
                 updateMessage("Cancelled!");
-                Dialogs.showWarningNotification("Sending To HRM","The download has been cancelled");
+                Dialogs.showWarningNotification("Retrieving from HRM","Task has been cancelled");
             }
 
             @Override protected void failed() {
                 super.failed();
                 updateMessage("Failed!");
-                Dialogs.showErrorNotification("Sending To HRM","An error has occurs during the download");
+                Dialogs.showErrorNotification("Retrieving from HRM","An error has occurs during the retrieve");
             }
         };
 
@@ -253,7 +228,7 @@ public class QPHRMRetrieveFromHRM {
         // Before starting our task, we need to bind our UI values to the properties on the task
         progressBar.progressProperty().bind(task.progressProperty());
         lblProgress.textProperty().bind(task.messageProperty());
-        resultsFolder.textProperty().bind(task.titleProperty());
+        lblMessage.textProperty().bind(task.titleProperty());
 
         // Now, start the task on a background thread
         Thread thread = new Thread(task);
@@ -599,14 +574,14 @@ public class QPHRMRetrieveFromHRM {
         progressBar.setMinWidth(200);
 
         // copy the path to clipboard if double-clicking on it
-        resultsFolder.setOnMouseClicked(new EventHandler<MouseEvent>() {
+        lblMessage.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
             public void handle(MouseEvent mouseEvent) {
                 if(mouseEvent.getButton().equals(MouseButton.PRIMARY)){
                     if(mouseEvent.getClickCount() == 2){
                         Clipboard clipboard = Clipboard.getSystemClipboard();
                         ClipboardContent content = new ClipboardContent();
-                        content.putString(resultsFolder.getText());
+                        content.putString(lblMessage.getText());
                         clipboard.setContent(content);
                     }
                 }
@@ -619,14 +594,14 @@ public class QPHRMRetrieveFromHRM {
                 new HBox(5) {{
                     setAlignment(Pos.CENTER);
                     getChildren().addAll(
-                            new Label("Download image: "),
+                            new Label("Retrieve image: "),
                             lblProgress
                     );
                 }},
                 new HBox(5) {{
                     setAlignment(Pos.CENTER);
                     getChildren().addAll(
-                            resultsFolder
+                            lblMessage
                     );
                 }},
                 button
@@ -636,7 +611,7 @@ public class QPHRMRetrieveFromHRM {
         primaryStage.setWidth(350);
         primaryStage.setHeight(180);
         primaryStage.setScene(new Scene(root));
-        primaryStage.setTitle("Sending images to HRM");
+        primaryStage.setTitle("Retrieving deconvolved images from HRM");
         primaryStage.show();
     }
 }

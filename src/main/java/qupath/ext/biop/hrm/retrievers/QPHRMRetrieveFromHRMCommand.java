@@ -98,7 +98,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         String root = "C:\\Users\\dornier\\Downloads";//"\\\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
 
         // retrieve images
-        boolean sentImages = QPHRMRetrieveFromHRM.retrieve(qupath, root, username, deleteOnHRM, host);
+        QPHRMRetrieveFromHRM.retrieve(qupath, root, username, deleteOnHRM, host);
     }
 
 }

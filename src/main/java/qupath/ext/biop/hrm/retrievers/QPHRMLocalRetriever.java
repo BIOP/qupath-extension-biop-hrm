@@ -37,8 +37,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
         try {
             // test if the deconvolved folder already exists
             if(this.target.exists()){
-                Dialogs.showWarningNotification("Sending back images",
-                        "Image and results in  "+this.target.getAbsolutePath()+" already exists");
+                logger.warn("Sending back images : Image and results in  "+this.target.getAbsolutePath()+" already exists");
                 return true;
             }
 
@@ -57,13 +56,10 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
 
                 return true;
             }
-            else Dialogs.showErrorNotification("Sending back images",
-                    "Cannot create the folder "+this.target.getAbsolutePath()+
-                            " to copy files from "+this.imageToSend.getParentFile().getAbsolutePath());
+            else logger.error("Sending back images : Cannot create the folder "+this.target.getAbsolutePath());
         }catch(IOException e){
-            Dialogs.showErrorNotification("Sending back images",
-                    "Cannot create the folder "+this.target.getAbsolutePath()+
-                            " to copy files from "+this.imageToSend.getParentFile().getAbsolutePath());
+            logger.error("Sending back images : Error during folder creation "+this.target.getAbsolutePath()+
+                            " or during files copy from "+this.imageToSend.getParentFile().getAbsolutePath());
         }
         return false;
     }
@@ -75,7 +71,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
 
         // check if the image within the target folder exists
         if(!new File(imageURI).exists()){
-            Dialogs.showErrorNotification("Import to QuPath", "The image "+imageURI+" does not exists.");
+            logger.warn("Import to QuPath : The image "+imageURI+" does not exists.");
             return false;
         }
 
@@ -90,8 +86,8 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
             QPHRMRetrieveFromHRM.toQuPath(qupath, null, imageURI, omeroKeyValues);
             return true;
         }catch(IOException e){
-            Dialogs.showErrorNotification("Image to QuPath", "An error occured when trying to add image "+imageURI+" to QuPath project");
-            logger.error(""+e);
+            logger.error("Image to QuPath : An error occurred when trying to add image "+imageURI+" to QuPath project");
+            logger.error(String.valueOf(e));
             logger.error(OmeroRawTools.getErrorStackTraceAsString(e));
             return false;
         }
@@ -150,9 +146,9 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
 
                     return true;
                 }catch(IOException e){
-                    Dialogs.showWarningNotification("Building Local target", "Error when trying to get URI from image "+finalImage.getImageName());
+                    logger.warn("Building Local target : Error when trying to get URI from image "+finalImage.getImageName());
                 }
-            }else Dialogs.showWarningNotification("Building Local target", "No image available in your project. Cannot copy deconvolution results");
+            }else logger.warn("Building Local target : No image available in your project. Cannot copy deconvolution results");
         }
         return false;
     }

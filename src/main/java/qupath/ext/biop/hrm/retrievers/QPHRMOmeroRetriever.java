@@ -82,16 +82,16 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
                     return true;
 
                 } else {
-                    Dialogs.showWarningNotification("Upload from HRM", "Image "+this.imageToSend.toString()+" cannot be uploaded on OMERO");
+                    logger.warn("Upload from HRM : Image "+this.imageToSend.toString()+" cannot be uploaded on OMERO");
                 }
             } else {
-                Dialogs.showWarningNotification("Existing images on OMERO", "Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
+                logger.warn("Existing images on OMERO : Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
                 ImageData image = imagesWithinDataset.stream().filter(e -> e.getName().equals(this.imageToSend.getName())).collect(Collectors.toList()).get(0);
                 this.imageId = image.getId();
                 return true;
             }
         } else {
-            Dialogs.showErrorNotification("Un-existing object","The dataset "+this.target+" does not exist on OMERO");
+            logger.error("Un-existing object : The dataset "+this.target+" does not exist on OMERO");
         }
         return false;
     }
@@ -117,8 +117,8 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
             QPHRMRetrieveFromHRM.toQuPath(qupath, omeroBuilder, imageURI, omeroKeyValues);
             return true;
         }catch(IOException e){
-            Dialogs.showErrorNotification("Image to QuPath", "An error occured when trying to add image "+this.imageId+" to QuPath project");
-            logger.error(""+e);
+            logger.error("Image to QuPath : An error occured when trying to add image "+this.imageId+" to QuPath project");
+            logger.error(String.valueOf(e));
             logger.error(OmeroRawTools.getErrorStackTraceAsString(e));
             return false;
         }
@@ -152,7 +152,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
                 this.target = Integer.parseInt(omeroDataset.split("_")[0]);
             return true;
         }
-        Dialogs.showErrorNotification("Un-existing image", "The image "+this.imageToSend+" does not exist");
+        logger.error("Un-existing image : The image "+this.imageToSend+" does not exist");
         return false;
     }
 

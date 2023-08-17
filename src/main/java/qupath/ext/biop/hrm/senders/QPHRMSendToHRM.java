@@ -101,7 +101,7 @@ public class QPHRMSendToHRM {
                     if(!isCancelled()) {
                         // Update our progress and message properties
                         updateMessage(i + 1 + " / " + nbImagesToDownload);
-                        updateProgress(i + 1, nbImagesToDownload);
+                        updateProgress(i, nbImagesToDownload);
 
                         // update username for local sender
                         String omeroUsername = ((OmeroRawImageServer) omeroServersList.get(i)).getClient().getLoggedInUser().getOmeName().getValue();
@@ -121,7 +121,7 @@ public class QPHRMSendToHRM {
                     if(!isCancelled()) {
                         // Update our progress and message properties
                         updateMessage(i + j + 1 + " / " + nbImagesToDownload);
-                        updateProgress(i + j + 1, nbImagesToDownload);
+                        updateProgress(i + j, nbImagesToDownload);
 
                         // send images to HRM
                         QPHRMLocalSender qphrmLocalSender = downloadLocalImage(localServersList.get(j), rootFolder, overwrite, finalUsername);
@@ -136,6 +136,7 @@ public class QPHRMSendToHRM {
 
             @Override protected void succeeded() {
                 super.succeeded();
+                updateProgress(nbImagesToDownload, nbImagesToDownload);
                 updateMessage("Done!");
                 Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
                         nSentImages,
