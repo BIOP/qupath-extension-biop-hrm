@@ -70,14 +70,14 @@ public class QPHRMOmeroSender implements QPHRMSender {
     }
 
     @Override
-    public QPHRMOmeroSender buildDestinationFolder(String rootPath) {
+    public QPHRMOmeroSender buildDestinationFolder(String rootPath, String username) {
         File rootPathFile = new File(rootPath);
         // check the root directory
         if(!rootPathFile.isDirectory())
             return this;
 
         // check if the user folder already exists and stop if it does not.
-        File userPathFile = new File(rootPath + File.separator + this.client.getLoggedInUser().getOmeName().getValue());
+        File userPathFile = new File(rootPath + File.separator + username);
         if(!userPathFile.isDirectory()) {Dialogs.showErrorNotification("Building destination folder","Path "+userPathFile+" does not exists"); return this;}
 
         // get or create "Raw" folder

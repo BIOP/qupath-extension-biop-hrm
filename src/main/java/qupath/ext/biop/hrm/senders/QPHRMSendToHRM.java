@@ -76,8 +76,6 @@ public class QPHRMSendToHRM {
     }
 
 
-
-
     private static Task<Void> startProcess(List<ImageServer<BufferedImage>> omeroServersList,
                                      List<ImageServer<BufferedImage>> localServersList, int nbImagesToDownload,
                                      String rootFolder, String username, boolean overwrite) {
@@ -87,7 +85,7 @@ public class QPHRMSendToHRM {
             int nSentImages = 0;
             int nSkippedImages = 0;
             @Override
-            protected Void call() throws Exception {
+            protected Void call() {
 
                 int i = 0;
                 String finalUsername = username;
@@ -97,23 +95,29 @@ public class QPHRMSendToHRM {
                         // Update our progress and message properties
                         updateMessage(i + 1 + " / " + nbImagesToDownload);
                         updateProgress(i + 1, nbImagesToDownload);
+
+                        String omeroUsername = ((OmeroRawImageServer) omeroServersList.get(i)).getClient().getLoggedInUser().getOmeName().getValue();
                         if (finalUsername.equals(""))
-                            finalUsername = ((OmeroRawImageServer) omeroServersList.get(i)).getClient().getLoggedInUser().getOmeName().getValue();
-                        QPHRMOmeroSender qphrmOmeroSender = downloadOmeroImage(omeroServersList.get(i), rootFolder, overwrite);
+                            finalUsername = omeroUsername;
+
+                        QPHRMOmeroSender qphrmOmeroSender = downloadOmeroImage(omeroServersList.get(i), rootFolder, overwrite, omeroUsername);
                         nSentImages += qphrmOmeroSender.isSent() ? 1 : 0;
                         nSkippedImages += qphrmOmeroSender.isSkipped() ? 1 : 0;
+
                         updateTitle(qphrmOmeroSender.getDestinationFolder());
                     }
                 }
 
-                for(int j = i; j < localServersList.size(); j++){
+                for(int j = 0; j < localServersList.size(); j++){
                     if(!isCancelled()) {
                         // Update our progress and message properties
-                        updateMessage(j + 1 + " / " + nbImagesToDownload);
-                        updateProgress(j + 1, nbImagesToDownload);
-                        QPHRMLocalSender qphrmLocalSender = downloadLocalImage(omeroServersList.get(i), rootFolder, overwrite, finalUsername);
+                        updateMessage(i + j + 1 + " / " + nbImagesToDownload);
+                        updateProgress(i + j + 1, nbImagesToDownload);
+
+                        QPHRMLocalSender qphrmLocalSender = downloadLocalImage(localServersList.get(j), rootFolder, overwrite, finalUsername);
                         nSentImages += qphrmLocalSender.isSent() ? 1 : 0;
                         nSkippedImages += qphrmLocalSender.isSkipped() ? 1 : 0;
+
                         updateTitle(qphrmLocalSender.getDestinationFolder());
                     }
                 }
@@ -163,11 +167,11 @@ public class QPHRMSendToHRM {
         return task;
     }
 
-    private static QPHRMOmeroSender downloadOmeroImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite){
+    private static QPHRMOmeroSender downloadOmeroImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite, String username){
         QPHRMOmeroSender qphrmOmeroSender = new QPHRMOmeroSender()
                 .setClient(((OmeroRawImageServer) imageServer).getClient())
                 .setImage(imageServer)
-                .buildDestinationFolder(rootFolder)
+                .buildDestinationFolder(rootFolder, username)
                 .copy(overwrite);
         try {
             imageServer.close();
@@ -181,9 +185,8 @@ public class QPHRMSendToHRM {
 
     private static QPHRMLocalSender downloadLocalImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite, String username){
         QPHRMLocalSender qphrmLocalSender = new QPHRMLocalSender()
-                .setUsername(username)
                 .setImage(imageServer)
-                .buildDestinationFolder(rootFolder)
+                .buildDestinationFolder(rootFolder, username)
                 .copy(overwrite);
         try {
             imageServer.close();

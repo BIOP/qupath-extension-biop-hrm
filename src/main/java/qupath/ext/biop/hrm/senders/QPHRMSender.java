@@ -43,7 +43,7 @@ public interface QPHRMSender {
      * @param root
      * @return
      */
-    QPHRMSender buildDestinationFolder(String root);
+    QPHRMSender buildDestinationFolder(String root, String username);
 
     /**
      * set the current image server

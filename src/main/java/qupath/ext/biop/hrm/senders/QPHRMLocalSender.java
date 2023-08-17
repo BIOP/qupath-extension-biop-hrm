@@ -19,9 +19,6 @@ public class QPHRMLocalSender implements QPHRMSender {
 
     /** image to send to HRM */
     private ImageServer<BufferedImage> image;
-
-    /** HRM username */
-    private String username = "";
     private boolean isSent = false;
     private boolean isFailed = false;
     private boolean isSkipped = false;
@@ -77,7 +74,7 @@ public class QPHRMLocalSender implements QPHRMSender {
     }
 
     @Override
-    public QPHRMLocalSender buildDestinationFolder(String rootPath) {
+    public QPHRMLocalSender buildDestinationFolder(String rootPath, String username) {
         File rootPathFile = new File(rootPath);
         // check if HRM share folder exists
         if(!rootPathFile.isDirectory())
@@ -113,8 +110,4 @@ public class QPHRMLocalSender implements QPHRMSender {
         return this;
     }
 
-    public QPHRMLocalSender setUsername(String username){
-        this.username = username;
-        return this;
-    }
 }
