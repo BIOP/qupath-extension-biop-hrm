@@ -146,20 +146,15 @@ public class QPHRMSendToHRM {
             }
         };
 
-
         // This method allows us to handle any Exceptions thrown by the task
         task.setOnFailed(wse -> {
             wse.getSource().getException().printStackTrace();
         });
 
-
         // Before starting our task, we need to bind our UI values to the properties on the task
         progressBar.progressProperty().bind(task.progressProperty());
         lblProgress.textProperty().bind(task.messageProperty());
         resultsFolder.textProperty().bind(task.titleProperty());
-
-
-
 
         // Now, start the task on a background thread
         Thread thread = new Thread(task);
@@ -239,6 +234,7 @@ public class QPHRMSendToHRM {
 
         });
         lblProgress.setAlignment(Pos.CENTER);
+        progressBar.setMinWidth(200);
 
         resultsFolder.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
@@ -283,9 +279,10 @@ public class QPHRMSendToHRM {
         );
 
         // Show the Stage
-        primaryStage.setWidth(300);
-        primaryStage.setHeight(200);
+        primaryStage.setWidth(350);
+        primaryStage.setHeight(180);
         primaryStage.setScene(new Scene(root));
+        primaryStage.setTitle("Sending images to HRM");
         primaryStage.show();
     }
 
