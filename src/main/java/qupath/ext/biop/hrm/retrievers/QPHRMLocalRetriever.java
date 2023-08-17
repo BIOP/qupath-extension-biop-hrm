@@ -3,6 +3,7 @@ package qupath.ext.biop.hrm.retrievers;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -125,10 +126,13 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
             ProjectImageEntry<BufferedImage> finalImage = null;
             double higherSimilarity = 0;
             for(ProjectImageEntry<BufferedImage> image :imageList){
-                double sim = similarity(image.getImageName(), hrmName);
-                if(sim > higherSimilarity){
-                    higherSimilarity = sim;
-                    finalImage = image;
+                if(!(image.getServerBuilder() instanceof OmeroRawImageServerBuilder)) {
+                    double sim = similarity(image.getImageName(), hrmName);
+
+                    if (sim > higherSimilarity) {
+                        higherSimilarity = sim;
+                        finalImage = image;
+                    }
                 }
             }
 

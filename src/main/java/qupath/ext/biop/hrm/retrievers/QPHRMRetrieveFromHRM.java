@@ -1,16 +1,33 @@
 package qupath.ext.biop.hrm.retrievers;
 
+import javafx.concurrent.Task;
+import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.biop.hrm.senders.QPHRMLocalSender;
+import qupath.ext.biop.hrm.senders.QPHRMOmeroSender;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClients;
+import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -25,6 +42,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
+import javax.print.attribute.HashPrintJobAttributeSet;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -33,8 +51,10 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -44,6 +64,9 @@ import java.util.stream.Collectors;
  */
 public class QPHRMRetrieveFromHRM {
     private final static Logger logger = LoggerFactory.getLogger(QPHRMRetrieveFromHRM.class);
+    private static ProgressBar progressBar = new ProgressBar(0.0);
+    private static Label lblProgress = new Label();
+    protected static Label resultsFolder = new Label();
 
     /**
      * List deconvolved images and send them back to raw location and to QuPath project
@@ -75,7 +98,10 @@ public class QPHRMRetrieveFromHRM {
             }
         }
 
-        // select the type of connection and choose the correct retriever
+        Task<Void> task = startProcess(qupath, imageTypeMap, deleteOnHRM, imageTypeMap.size(), client);
+        buildDialog(task);
+
+       /* // select the type of connection and choose the correct retriever
         for(Map.Entry<String,String> entry : imageTypeMap.entrySet()){
             // get the results file
             File paramFile = getResultsFile(entry.getKey(), ".parameters.txt");
@@ -116,9 +142,128 @@ public class QPHRMRetrieveFromHRM {
                                 logger.info("Image"+entry.getKey()+" and associated files are deleted on HRM-Share folder");
                             else
                                 logger.error("Cannot delete image "+entry.getKey()+" neither associated files");
-        }
+        }*/
         return true;
     }
+
+
+    /**
+     * Background task that retrieve images from HRM
+     *
+     * @param qupath
+     * @param imageTypeMap
+     * @param deleteOnHRM
+     * @param client
+     * @return
+     */
+    private static Task<Void> startProcess(QuPathGUI qupath, Map<String, String> imageTypeMap,
+                                           boolean deleteOnHRM, int nbImagesToRetrieve, OmeroRawClient client) {
+        // Create a background Task
+        Task<Void> task = new Task<Void>() {
+            int nSentImages = 0;
+            int nSkippedImages = 0;
+            @Override
+            protected Void call() {
+
+                List<String> paths = new ArrayList<>(imageTypeMap.keySet());
+
+                // select the type of connection and choose the correct retriever
+                for(int i = 0; i < paths.size(); i++){
+                    // Update our progress and message properties
+                    updateMessage(i + 1 + " / " + nbImagesToRetrieve);
+                    updateProgress(i + 1, nbImagesToRetrieve);
+
+                    String path = paths.get(i);
+                    String imageServerType = imageTypeMap.get(path);
+
+                    // get the results file
+                    File paramFile = getResultsFile(path, ".parameters.txt");
+
+                    // parse the parameter file and extract key-value pairs
+                    Map<String, Map<String, String>> metadata = new TreeMap<>();
+                    if(paramFile != null)
+                        metadata = parseSummaryFile(paramFile);
+
+                    QPHRMRetriever retriever;
+                    switch(imageServerType.toLowerCase()){
+                        case "omero":
+                            // get the log file
+                            File logFile = getResultsFile(path, ".log.txt");
+                            retriever = new QPHRMOmeroRetriever()
+                                    .setImage(path)
+                                    .setClient(client)
+                                    .setMetadata(metadata)
+                                    .setLogFile(logFile);
+
+                            break;
+                        case "local":
+                            retriever = new QPHRMLocalRetriever()
+                                    .setImage(path)
+                                    .setMetadata(metadata);
+                            break;
+                        default:
+                            Dialogs.showWarningNotification("Type does not exists", "Type "+imageServerType+" is not supported for image "+path);
+                            continue;
+                    }
+
+                    // send back deconvolved image to their location and to QuPath project
+                    if(retriever.buildTarget())
+                        if(retriever.sendBack())
+                            if(retriever.toQuPath(qupath))
+                                if(deleteOnHRM)
+                                    if(deleteAssociatedFiles(path))
+                                        logger.info("Image"+path+" and associated files are deleted on HRM-Share folder");
+                                    else
+                                        logger.error("Cannot delete image "+path+" neither associated files");
+                }
+                return null;
+            }
+
+            @Override protected void succeeded() {
+                super.succeeded();
+                updateMessage("Done!");
+                Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
+                        nSentImages,
+                        nbImagesToRetrieve,
+                        (nSentImages == 1 ? "image" : "images"),
+                        (nSentImages == 1 ? "was" : "were"),
+                        nSkippedImages,
+                        nbImagesToRetrieve,
+                        (nSkippedImages == 1 ? "was" : "were")));
+            }
+
+            @Override protected void cancelled() {
+                super.cancelled();
+                updateMessage("Cancelled!");
+                Dialogs.showWarningNotification("Sending To HRM","The download has been cancelled");
+            }
+
+            @Override protected void failed() {
+                super.failed();
+                updateMessage("Failed!");
+                Dialogs.showErrorNotification("Sending To HRM","An error has occurs during the download");
+            }
+        };
+
+        // This method allows us to handle any Exceptions thrown by the task
+        task.setOnFailed(wse -> {
+            wse.getSource().getException().printStackTrace();
+        });
+
+        // Before starting our task, we need to bind our UI values to the properties on the task
+        progressBar.progressProperty().bind(task.progressProperty());
+        lblProgress.textProperty().bind(task.messageProperty());
+        resultsFolder.textProperty().bind(task.titleProperty());
+
+        // Now, start the task on a background thread
+        Thread thread = new Thread(task);
+        thread.start();
+
+        return task;
+    }
+
+
+
 
     /**
      * deletes deconvolved image and associated files (.txt files and other) from HRM.
@@ -370,7 +515,7 @@ public class QPHRMRetrieveFromHRM {
         File[] fList = directory.listFiles();
         if(fList != null)
             for (File file : fList) {
-                if (file.isFile() && file.getName().endsWith(".ids")) { // TODO change to .ids
+                if (file.isFile() &&  ( file.getName().endsWith(".dv") || file.getName().endsWith(".lif") ) ) { // TODO change to .ids
                     imageTypeMap.put(file.getAbsolutePath(), typeName);
                 } else if (file.isDirectory()) {
                     recursiveFileListing(file, typeName, imageTypeMap);
@@ -429,5 +574,69 @@ public class QPHRMRetrieveFromHRM {
             return new TreeMap<>();
         }
         return nameSpaceKeyValueMap;
+    }
+
+
+    /**
+     * build the progress Dialog box
+     * @param task
+     */
+    private static void buildDialog(Task<Void> task) {
+        // Simple interface
+        VBox root = new VBox(5);
+        root.setPadding(new Insets(10));
+        root.setAlignment(Pos.CENTER);
+        Stage primaryStage = new Stage();
+
+        // Button to cancel the background task
+        Button button = new Button("Cancel");
+        button.setOnAction(event -> {
+            task.cancel();
+            primaryStage.close();
+        });
+
+        lblProgress.setAlignment(Pos.CENTER);
+        progressBar.setMinWidth(200);
+
+        // copy the path to clipboard if double-clicking on it
+        resultsFolder.setOnMouseClicked(new EventHandler<MouseEvent>() {
+            @Override
+            public void handle(MouseEvent mouseEvent) {
+                if(mouseEvent.getButton().equals(MouseButton.PRIMARY)){
+                    if(mouseEvent.getClickCount() == 2){
+                        Clipboard clipboard = Clipboard.getSystemClipboard();
+                        ClipboardContent content = new ClipboardContent();
+                        content.putString(resultsFolder.getText());
+                        clipboard.setContent(content);
+                    }
+                }
+            }
+        });
+
+        // Add boxes du the main box
+        root.getChildren().addAll(
+                progressBar,
+                new HBox(5) {{
+                    setAlignment(Pos.CENTER);
+                    getChildren().addAll(
+                            new Label("Download image: "),
+                            lblProgress
+                    );
+                }},
+                new HBox(5) {{
+                    setAlignment(Pos.CENTER);
+                    getChildren().addAll(
+                            resultsFolder
+                    );
+                }},
+                button
+        );
+
+        // Show the Stage
+        primaryStage.setWidth(350);
+        primaryStage.setHeight(180);
+        primaryStage.setScene(new Scene(root));
+        primaryStage.setTitle("Sending images to HRM");
+        primaryStage.show();
     }
 }
