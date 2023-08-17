@@ -36,6 +36,7 @@ public class QPHRMSendToHRM {
     protected static Label lblResultsFolder = new Label();
     private static String message = "";
     private static List<String> resolutsFolderlist = new ArrayList<>();
+    private static Button centralButton = new Button();
 
 
     /**
@@ -157,6 +158,7 @@ public class QPHRMSendToHRM {
                         nSkippedImages,
                         nbImagesToDownload);
                 updateMessage("Done!"+finalMessage);
+                centralButton.setText("Done");
             }
 
             @Override protected void cancelled() {
@@ -276,8 +278,8 @@ public class QPHRMSendToHRM {
         Stage primaryStage = new Stage();
 
         // Button to cancel the background task
-        Button button = new Button("Cancel");
-        button.setOnAction(event -> {
+        centralButton = new Button("Cancel");
+        centralButton.setOnAction(event -> {
             task.cancel();
             primaryStage.close();
         });
@@ -316,7 +318,7 @@ public class QPHRMSendToHRM {
                             lblResultsFolder
                     );
                 }},
-                button
+                centralButton
         );
 
         // Show the Stage
