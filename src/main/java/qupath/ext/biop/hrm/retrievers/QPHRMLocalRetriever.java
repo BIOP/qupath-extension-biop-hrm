@@ -26,6 +26,12 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
     /** Deconvolved image */
     private File imageToSend;
 
+    /** Raw image name*/
+    private String rawName;
+
+    /** HRM code*/
+    private String hrmCode;
+
     /** Parent folder of the raw image */
     private File target;
 
@@ -94,26 +100,16 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
     }
 
     @Override
-    public QPHRMLocalRetriever setImage(String imagePath) {
-        this.imageToSend = new File(imagePath);
+    public QPHRMLocalRetriever setImage(File imageFile, String rawName, String hrmCode) {
+        this.imageToSend = imageFile;
+        this.rawName = rawName;
+        this.hrmCode = hrmCode;
         return this;
     }
 
     @Override
     public boolean buildTarget() {
         if(this.imageToSend != null && this.imageToSend.exists()) {
-            String hrmName = this.imageToSend.getName();
-            // remove "hrm.extension" suffix from image name
-            int index = hrmName.lastIndexOf("_");
-            hrmName = hrmName.substring(0,index);
-
-            // extract hrm code
-            index = hrmName.lastIndexOf("_");
-            String hrmCode = hrmName.substring(index);
-
-            // remove hrm code from image name
-            hrmName = hrmName.substring(0,index);
-
             // list all available images
             // TODO find a way to pass qupathGui in argument
             List<ProjectImageEntry<BufferedImage>> imageList = QuPathGUI.getInstance().getProject().getImageList();
@@ -123,7 +119,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
             double higherSimilarity = 0;
             for(ProjectImageEntry<BufferedImage> image :imageList){
                 if(!(image.getServerBuilder() instanceof OmeroRawImageServerBuilder)) {
-                    double sim = similarity(image.getImageName(), hrmName);
+                    double sim = similarity(image.getImageName(), this.rawName);
 
                     if (sim > higherSimilarity) {
                         higherSimilarity = sim;
@@ -141,7 +137,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
                     parentFolder = parentFolder.replace("file:\\","");
 
                     // set the deconvolved folder name and path
-                    String deconvolvedFolderPath = parentFolder + File.separator + finalImage.getImageName() + "_Deconvolved" + hrmCode;
+                    String deconvolvedFolderPath = parentFolder + File.separator + finalImage.getImageName() + "_Deconvolved_" + this.hrmCode;
                     this.target = new File(deconvolvedFolderPath);
 
                     return true;

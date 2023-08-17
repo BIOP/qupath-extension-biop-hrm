@@ -4,12 +4,14 @@ import omero.gateway.model.DatasetData;
 import omero.gateway.model.ProjectData;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
+import qupath.ext.biop.servers.omero.raw.OmeroRawScripting;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collection;
 
 public class QPHRMOmeroSender implements QPHRMSender {
@@ -58,8 +60,9 @@ public class QPHRMOmeroSender implements QPHRMSender {
             String imageName = OmeroRawTools.readOmeroImage(this.client, omeroId).getName();
             if(overwrite || !(new File(this.destinationFolder + File.separator + imageName).exists())) {
                 // copy image in HRM folder
-                if(OmeroRawTools.downloadImage(this.client, omeroId, destinationFolderFile.toString()))
+                if(OmeroRawTools.downloadImage(this.client, omeroId, destinationFolderFile.toString())) {
                     this.isSent = true;
+                }
                 else this.isFailed = true;
             }else this.isSkipped = true;
         } else{

@@ -52,6 +52,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -65,6 +67,8 @@ public class QPHRMRetrieveFromHRM {
     private static Label lblMessage = new Label();
     private static Button centralButton = new Button();
     private static String message = "";
+    private static  Pattern deconvolvedNamePattern = Pattern.compile("(?<name>.*)_(?<hrmcode>.{13})_hrm.*");
+
 
     /**
      * List deconvolved images and send them back to raw location and to QuPath project
@@ -78,12 +82,12 @@ public class QPHRMRetrieveFromHRM {
      */
     public static void retrieve(QuPathGUI qupath, String root, String owner, boolean deleteOnHRM, String omeroHost){
         // list all files retrieve in QuPath
-        Map<String, String> imageTypeMap = listFileToUpload(root, owner);
+        Map<File, String> imageTypeMap = listFileToUpload(root, owner);
         if(imageTypeMap.isEmpty())
             return;
 
         // check if there is an OMERO connection to get and ask for one in case
-        List<Map.Entry<String, String>> omeroList = imageTypeMap.entrySet()
+        List<Map.Entry<File, String>> omeroList = imageTypeMap.entrySet()
                 .stream()
                 .filter(e -> e.getValue().equalsIgnoreCase("omero"))
                 .collect(Collectors.toList());
@@ -111,7 +115,7 @@ public class QPHRMRetrieveFromHRM {
      * @param client
      * @return
      */
-    private static Task<Void> startProcess(QuPathGUI qupath, Map<String, String> imageTypeMap,
+    private static Task<Void> startProcess(QuPathGUI qupath, Map<File, String> imageTypeMap,
                                            boolean deleteOnHRM, int nbImagesToRetrieve, OmeroRawClient client) {
         // Create a background Task
         Task<Void> task = new Task<Void>() {
@@ -119,7 +123,7 @@ public class QPHRMRetrieveFromHRM {
             @Override
             protected Void call() {
 
-                List<String> paths = new ArrayList<>(imageTypeMap.keySet());
+                List<File> paths = new ArrayList<>(imageTypeMap.keySet());
                 message += "\n--- Minimal log window - Please look at the log file for more details ---";
                 updateTitle(message);
 
@@ -129,24 +133,32 @@ public class QPHRMRetrieveFromHRM {
                     updateMessage(i + 1 + " / " + nbImagesToRetrieve);
                     updateProgress(i, nbImagesToRetrieve);
 
-                    String path = paths.get(i);
-                    String imageServerType = imageTypeMap.get(path);
+                    File imgFile = paths.get(i);
+                    String imageServerType = imageTypeMap.get(imgFile);
 
                     // get the results file
-                    File paramFile = getResultsFile(path, ".parameters.txt");
+                    File paramFile = getResultsFile(imgFile, ".parameters.txt");
 
                     // parse the parameter file and extract key-value pairs
                     Map<String, Map<String, String>> metadata = new TreeMap<>();
                     if(paramFile != null)
                         metadata = parseSummaryFile(paramFile);
 
+                    String rawName = "";
+                    String hrmCode = "";
+                    Matcher matcher = deconvolvedNamePattern.matcher(imgFile.getName());
+                    if(matcher.find()){
+                        rawName = matcher.group("name");
+                        hrmCode = matcher.group("hrmcode");
+                    }
+
                     QPHRMRetriever retriever;
                     switch(imageServerType.toLowerCase()){
                         case "omero":
                             // get the log file
-                            File logFile = getResultsFile(path, ".log.txt");
+                            File logFile = getResultsFile(imgFile, ".log.txt");
                             retriever = new QPHRMOmeroRetriever()
-                                    .setImage(path)
+                                    .setImage(imgFile, rawName, hrmCode)
                                     .setClient(client)
                                     .setMetadata(metadata)
                                     .setLogFile(logFile);
@@ -154,11 +166,11 @@ public class QPHRMRetrieveFromHRM {
                             break;
                         case "local":
                             retriever = new QPHRMLocalRetriever()
-                                    .setImage(path)
+                                    .setImage(imgFile, rawName, hrmCode)
                                     .setMetadata(metadata);
                             break;
                         default:
-                            String smallMessage = "Type " + imageServerType + " is not supported for image " + path;
+                            String smallMessage = "Type " + imageServerType + " is not supported for image " + imgFile;
                             logger.warn(smallMessage);
                             message += "\n" + smallMessage;
                             updateTitle(message);
@@ -170,10 +182,10 @@ public class QPHRMRetrieveFromHRM {
                         if (retriever.sendBack()) {
                             if (retriever.toQuPath(qupath)) {
                                 if (deleteOnHRM) {
-                                    if (deleteAssociatedFiles(path))
-                                        logger.info("Image" + path + " and associated files are deleted on HRM-Share folder");
+                                    if (deleteAssociatedFiles(imgFile))
+                                        logger.info("Image" + imgFile + " and associated files are deleted on HRM-Share folder");
                                     else {
-                                        String smallMessage = "Cannot delete image " + path + " neither associated files";
+                                        String smallMessage = "Cannot delete image " + imgFile + " neither associated files";
                                         message += "\n" + smallMessage;
                                         updateTitle(message);
                                         logger.error(smallMessage);
@@ -181,17 +193,17 @@ public class QPHRMRetrieveFromHRM {
                                 }
                                 nRetrievedImages += 1;
                             }else{
-                                String smallMessage = "Cannot add image to QuPath for" +path;
+                                String smallMessage = "Cannot add image to QuPath for" +imgFile;
                                 message += "\n" + smallMessage;
                                 updateTitle(message);
                             }
                         }else{
-                            String smallMessage = "Cannot send back results for : " +path;
+                            String smallMessage = "Cannot send back results for : " +imgFile;
                             message += "\n" + smallMessage;
                             updateTitle(message);
                         }
                     }else{
-                        String smallMessage = "Cannot build target folder for : " +path;
+                        String smallMessage = "Cannot build target folder for : " +imgFile;
                         message += "\n" + smallMessage;
                         updateTitle(message);
                     }
@@ -240,19 +252,15 @@ public class QPHRMRetrieveFromHRM {
         return task;
     }
 
-
-
-
     /**
      * deletes deconvolved image and associated files (.txt files and other) from HRM.
      * Deletion is based on image name, that contains a unique HRM ID
      *
-     * @param filePath
+     * @param imageFile
      * @return
      */
-    private static boolean deleteAssociatedFiles(String filePath){
+    private static boolean deleteAssociatedFiles(File imageFile){
         // get image name
-        File imageFile = new File(filePath);
         String imageName = imageFile.getName();
 
         // remove file extension
@@ -276,16 +284,13 @@ public class QPHRMRetrieveFromHRM {
     /**
      * returns the first file that contains image name, with the specified suffix.
      *
-     * @param imagePath
+     * @param imageFile
      * @param suffix
      * @return
      */
-    private static File getResultsFile(String imagePath, String suffix){
-        File imageFile = new File(imagePath);
-
+    private static File getResultsFile(File imageFile, String suffix){
         // get image name without extension
-        int extensionPosition = imageFile.getName().lastIndexOf(".");
-        String imageName = imageFile.getName().substring(0, extensionPosition);
+        String imageName = imageFile.getName().split("\\.")[0];
 
         // list all files in the parent folder
         File[] files = imageFile.getParentFile().listFiles();
@@ -447,7 +452,7 @@ public class QPHRMRetrieveFromHRM {
      * @param owner
      * @return
      */
-    private static LinkedHashMap<String, String> listFileToUpload(String root, String owner){
+    private static LinkedHashMap<File, String> listFileToUpload(String root, String owner){
         // check existence of the root folder
         if(!new File(root).exists()){Dialogs.showErrorNotification("List files to upload","Path "+root+" does not exists"); return new LinkedHashMap<>();}
 
@@ -465,7 +470,7 @@ public class QPHRMRetrieveFromHRM {
 
         // list category folders (local, omero, s3)
         File[] dirs = qupathFolder.listFiles();
-        LinkedHashMap<String, String> imageTypeMap = new LinkedHashMap<>();
+        LinkedHashMap<File, String> imageTypeMap = new LinkedHashMap<>();
 
         // put all images within these folders in a map with their category
         if(dirs != null)
@@ -488,13 +493,13 @@ public class QPHRMRetrieveFromHRM {
      * @param typeName
      * @param imageTypeMap
      */
-    private static void recursiveFileListing(File directory, String typeName, Map<String, String> imageTypeMap) {
+    private static void recursiveFileListing(File directory, String typeName, Map<File, String> imageTypeMap) {
         // Get all files from a directory.
         File[] fList = directory.listFiles();
         if(fList != null)
             for (File file : fList) {
                 if (file.isFile() &&  ( file.getName().endsWith(".dv") || file.getName().endsWith(".lif") ) ) { // TODO change to .ids
-                    imageTypeMap.put(file.getAbsolutePath(), typeName);
+                    imageTypeMap.put(file, typeName);
                 } else if (file.isDirectory()) {
                     recursiveFileListing(file, typeName, imageTypeMap);
                 }

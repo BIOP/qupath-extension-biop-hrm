@@ -1,6 +1,8 @@
 package qupath.ext.biop.hrm.retrievers;
 
 import qupath.lib.gui.QuPathGUI;
+
+import java.io.File;
 import java.util.Map;
 
 /**
@@ -26,10 +28,12 @@ public interface QPHRMRetriever {
 
     /**
      * set the deconvolved image to retrieve
-     * @param imagePath
+     * @param imageFile
+     * @param rawName
+     * @param hrmCode
      * @return
      */
-    QPHRMRetriever setImage(String imagePath);
+    QPHRMRetriever setImage(File imageFile, String rawName, String hrmCode);
 
     /**
      * build the target destination where to store the deconvolved image

@@ -31,6 +31,12 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     /** deconvolved image */
     private File imageToSend;
 
+    /** Raw image name*/
+    private String rawName;
+
+    /** HRM code*/
+    private String hrmCode;
+
     /** HRM log file */
     private File logFile;
 
@@ -125,8 +131,10 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     }
 
     @Override
-    public QPHRMOmeroRetriever setImage(String imagePath) {
-        this.imageToSend = new File(imagePath);
+    public QPHRMOmeroRetriever setImage(File imageFile, String rawName, String hrmCode) {
+        this.imageToSend = imageFile;
+        this.rawName = rawName;
+        this.hrmCode = hrmCode;
         return this;
     }
 
