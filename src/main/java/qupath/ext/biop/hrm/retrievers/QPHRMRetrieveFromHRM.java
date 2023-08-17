@@ -46,7 +46,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -105,6 +107,7 @@ public class QPHRMRetrieveFromHRM {
      * @param qupath
      * @param imageTypeMap
      * @param deleteOnHRM
+     * @param nbImagesToRetrieve
      * @param client
      * @return
      */
@@ -444,25 +447,25 @@ public class QPHRMRetrieveFromHRM {
      * @param owner
      * @return
      */
-    private static Map<String, String> listFileToUpload(String root, String owner){
+    private static LinkedHashMap<String, String> listFileToUpload(String root, String owner){
         // check existence of the root folder
-        if(!new File(root).exists()){Dialogs.showErrorNotification("List files to upload","Path "+root+" does not exists"); return new HashMap<>();}
+        if(!new File(root).exists()){Dialogs.showErrorNotification("List files to upload","Path "+root+" does not exists"); return new LinkedHashMap<>();}
 
         // check user folder
         File ownerFolder = new File(root + File.separator + owner);
-        if(!ownerFolder.exists()) {Dialogs.showErrorNotification("List files to upload","Path "+ownerFolder+" does not exists"); return new HashMap<>();}
+        if(!ownerFolder.exists()) {Dialogs.showErrorNotification("List files to upload","Path "+ownerFolder+" does not exists"); return new LinkedHashMap<>();}
 
         // check deconvolved folder
         File deconvolvedFolder = new File(ownerFolder + File.separator + "Deconvolved");
-        if(!deconvolvedFolder.isDirectory()) {Dialogs.showErrorNotification("List files to upload","Path "+deconvolvedFolder+" does not exists"); return new HashMap<>();}
+        if(!deconvolvedFolder.isDirectory()) {Dialogs.showErrorNotification("List files to upload","Path "+deconvolvedFolder+" does not exists"); return new LinkedHashMap<>();}
 
         // check QuPath folder
         File qupathFolder = new File(deconvolvedFolder + File.separator + "QuPath");
-        if(!qupathFolder.isDirectory()) {Dialogs.showErrorNotification("List files to upload","Path "+qupathFolder+" does not exists"); return new HashMap<>();}
+        if(!qupathFolder.isDirectory()) {Dialogs.showErrorNotification("List files to upload","Path "+qupathFolder+" does not exists"); return new LinkedHashMap<>();}
 
         // list category folders (local, omero, s3)
         File[] dirs = qupathFolder.listFiles();
-        Map<String, String> imageTypeMap = new HashMap<>();
+        LinkedHashMap<String, String> imageTypeMap = new LinkedHashMap<>();
 
         // put all images within these folders in a map with their category
         if(dirs != null)
@@ -609,7 +612,7 @@ public class QPHRMRetrieveFromHRM {
 
         // Show the Stage
         primaryStage.setWidth(350);
-        primaryStage.setHeight(180);
+        primaryStage.setHeight(250);
         primaryStage.setScene(new Scene(root));
         primaryStage.setTitle("Retrieving deconvolved images from HRM");
         primaryStage.show();
