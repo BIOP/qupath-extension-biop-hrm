@@ -16,7 +16,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -24,11 +23,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.biop.hrm.senders.QPHRMLocalSender;
-import qupath.ext.biop.hrm.senders.QPHRMOmeroSender;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClients;
-import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -43,7 +39,6 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
-import javax.print.attribute.HashPrintJobAttributeSet;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -52,10 +47,8 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -68,6 +61,7 @@ public class QPHRMRetrieveFromHRM {
     private static ProgressBar progressBar = new ProgressBar(0.0);
     private static Label lblProgress = new Label();
     private static Label lblMessage = new Label();
+    private static Button centralButton = new Button();
     private static String message = "";
 
     /**
@@ -118,8 +112,7 @@ public class QPHRMRetrieveFromHRM {
                                            boolean deleteOnHRM, int nbImagesToRetrieve, OmeroRawClient client) {
         // Create a background Task
         Task<Void> task = new Task<Void>() {
-            int nSentImages = 0;
-            int nSkippedImages = 0;
+            int nRetrievedImages = 0;
             @Override
             protected Void call() {
 
@@ -173,7 +166,7 @@ public class QPHRMRetrieveFromHRM {
                     if(retriever.buildTarget()) {
                         if (retriever.sendBack()) {
                             if (retriever.toQuPath(qupath)) {
-                                if (deleteOnHRM)
+                                if (deleteOnHRM) {
                                     if (deleteAssociatedFiles(path))
                                         logger.info("Image" + path + " and associated files are deleted on HRM-Share folder");
                                     else {
@@ -182,6 +175,8 @@ public class QPHRMRetrieveFromHRM {
                                         updateTitle(message);
                                         logger.error(smallMessage);
                                     }
+                                }
+                                nRetrievedImages += 1;
                             }else{
                                 String smallMessage = "Cannot add image to QuPath for" +path;
                                 message += "\n" + smallMessage;
@@ -204,7 +199,12 @@ public class QPHRMRetrieveFromHRM {
             @Override protected void succeeded() {
                 super.succeeded();
                 updateProgress(nbImagesToRetrieve, nbImagesToRetrieve);
-                updateMessage("Done!");
+                String finalMessage = "\n" + String.format("Retrieved %s : %d/%d",
+                        (nRetrievedImages == 1 ? "image" : "images"),
+                        nRetrievedImages,
+                        nbImagesToRetrieve);
+                updateMessage("Done!"+finalMessage);
+                centralButton.setText("Done");
             }
 
             @Override protected void cancelled() {
@@ -314,7 +314,7 @@ public class QPHRMRetrieveFromHRM {
      * @param keyVals
      * @throws IOException
      */
-    public static void toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI, Map<String, String> keyVals) throws IOException {
+    protected static void toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI, Map<String, String> keyVals) throws IOException {
         List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
         Project<BufferedImage> project = qupath.getProject();
 
@@ -506,7 +506,7 @@ public class QPHRMRetrieveFromHRM {
      * @param file
      * @return
      */
-    public static Map<String, Map<String, String>> parseSummaryFile(File file)  {
+    private static Map<String, Map<String, String>> parseSummaryFile(File file)  {
         Map<String, Map<String, String>> nameSpaceKeyValueMap = new TreeMap<>();
 
         try{
@@ -564,8 +564,8 @@ public class QPHRMRetrieveFromHRM {
         Stage primaryStage = new Stage();
 
         // Button to cancel the background task
-        Button button = new Button("Cancel");
-        button.setOnAction(event -> {
+        centralButton = new Button("Cancel");
+        centralButton.setOnAction(event -> {
             task.cancel();
             primaryStage.close();
         });
@@ -604,7 +604,7 @@ public class QPHRMRetrieveFromHRM {
                             lblMessage
                     );
                 }},
-                button
+                centralButton
         );
 
         // Show the Stage
