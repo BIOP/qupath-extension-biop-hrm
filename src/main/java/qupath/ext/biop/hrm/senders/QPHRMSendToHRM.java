@@ -33,7 +33,9 @@ public class QPHRMSendToHRM {
     private final static Logger logger = LoggerFactory.getLogger(QPHRMSendToHRM.class);
     private static ProgressBar progressBar = new ProgressBar(0.0);
     private static Label lblProgress = new Label();
-    protected static Label resultsFolder = new Label();
+    protected static Label lblResultsFolder = new Label();
+    private static String message = "";
+    private static List<String> resolutsFolderlist = new ArrayList<>();
 
 
     /**
@@ -113,7 +115,12 @@ public class QPHRMSendToHRM {
                         nSentImages += qphrmOmeroSender.isSent() ? 1 : 0;
                         nSkippedImages += qphrmOmeroSender.isSkipped() ? 1 : 0;
 
-                        updateTitle(qphrmOmeroSender.getDestinationFolder());
+                        String destFold = qphrmOmeroSender.getDestinationFolder();
+                        if(!resolutsFolderlist.contains(destFold)) {
+                            resolutsFolderlist.add(destFold);
+                            message += "\n"+destFold;
+                            updateTitle(message);
+                        }
                     }
                 }
 
@@ -128,7 +135,12 @@ public class QPHRMSendToHRM {
                         nSentImages += qphrmLocalSender.isSent() ? 1 : 0;
                         nSkippedImages += qphrmLocalSender.isSkipped() ? 1 : 0;
 
-                        updateTitle(qphrmLocalSender.getDestinationFolder());
+                        String destFold = qphrmLocalSender.getDestinationFolder();
+                        if(!resolutsFolderlist.contains(destFold)) {
+                            resolutsFolderlist.add(destFold);
+                            message += "\n"+destFold;
+                            updateTitle(message);
+                        }
                     }
                 }
                 return null;
@@ -137,15 +149,14 @@ public class QPHRMSendToHRM {
             @Override protected void succeeded() {
                 super.succeeded();
                 updateProgress(nbImagesToDownload, nbImagesToDownload);
-                updateMessage("Done!");
-                Dialogs.showInfoNotification("Sending To HRM",String.format("%d/%d %s %s successfully sent to HRM server and %d/%d %s skipped.",
+                String finalMessage = "\n" + String.format("Sent %s : %d/%d  \nSkipped %s : %d/%d ",
+                        (nSentImages == 1 ? "image" : "images"),
                         nSentImages,
                         nbImagesToDownload,
                         (nSentImages == 1 ? "image" : "images"),
-                        (nSentImages == 1 ? "was" : "were"),
                         nSkippedImages,
-                        nbImagesToDownload,
-                        (nSkippedImages == 1 ? "was" : "were")));
+                        nbImagesToDownload);
+                updateMessage("Done!"+finalMessage);
             }
 
             @Override protected void cancelled() {
@@ -169,7 +180,7 @@ public class QPHRMSendToHRM {
         // Before starting our task, we need to bind our UI values to the properties on the task
         progressBar.progressProperty().bind(task.progressProperty());
         lblProgress.textProperty().bind(task.messageProperty());
-        resultsFolder.textProperty().bind(task.titleProperty());
+        lblResultsFolder.textProperty().bind(task.titleProperty());
 
         // Now, start the task on a background thread
         Thread thread = new Thread(task);
@@ -271,18 +282,18 @@ public class QPHRMSendToHRM {
             primaryStage.close();
         });
 
-        lblProgress.setAlignment(Pos.CENTER);
+        lblProgress.setAlignment(Pos.TOP_LEFT);
         progressBar.setMinWidth(200);
 
         // copy the path to clipboard if double-clicking on it
-        resultsFolder.setOnMouseClicked(new EventHandler<MouseEvent>() {
+        lblResultsFolder.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
             public void handle(MouseEvent mouseEvent) {
                 if(mouseEvent.getButton().equals(MouseButton.PRIMARY)){
                     if(mouseEvent.getClickCount() == 2){
                         Clipboard clipboard = Clipboard.getSystemClipboard();
                         ClipboardContent content = new ClipboardContent();
-                        content.putString(resultsFolder.getText());
+                        content.putString(lblResultsFolder.getText());
                         clipboard.setContent(content);
                     }
                 }
@@ -302,7 +313,7 @@ public class QPHRMSendToHRM {
                 new HBox(5) {{
                     setAlignment(Pos.CENTER);
                     getChildren().addAll(
-                            resultsFolder
+                            lblResultsFolder
                     );
                 }},
                 button
@@ -310,7 +321,7 @@ public class QPHRMSendToHRM {
 
         // Show the Stage
         primaryStage.setWidth(350);
-        primaryStage.setHeight(180);
+        primaryStage.setHeight(250);
         primaryStage.setScene(new Scene(root));
         primaryStage.setTitle("Sending images to HRM");
         primaryStage.show();
