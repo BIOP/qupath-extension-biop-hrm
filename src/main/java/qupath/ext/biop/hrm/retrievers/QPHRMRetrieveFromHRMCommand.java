@@ -58,12 +58,24 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
             tfHost.setDisable(!chkOmero.selectedProperty().get());
         });
 
-        CheckBox chkDelete = new CheckBox("Delete data on HRM");
-        chkDelete.setMinWidth(CheckBox.USE_PREF_SIZE);
-        chkDelete.setSelected(false);
-        chkDelete.selectedProperty().addListener((v, o, n) -> {
-            labelSameImageWarning.setVisible(chkDelete.selectedProperty().get());
+        CheckBox chkDeleteDeconvolved = new CheckBox("Delete deconvolved files on HRM");
+        chkDeleteDeconvolved.setMinWidth(CheckBox.USE_PREF_SIZE);
+        chkDeleteDeconvolved.setSelected(false);
+
+        CheckBox chkDeleteRaw = new CheckBox("Delete raw images on HRM");
+        chkDeleteRaw.setMinWidth(CheckBox.USE_PREF_SIZE);
+        chkDeleteRaw.setSelected(false);
+
+        // add listener properties
+        chkDeleteRaw.selectedProperty().addListener((v, o, n) -> {
+            labelSameImageWarning.setVisible(chkDeleteRaw.selectedProperty().get() ||
+                    chkDeleteDeconvolved.selectedProperty().get());
         });
+        chkDeleteDeconvolved.selectedProperty().addListener((v, o, n) -> {
+            labelSameImageWarning.setVisible(chkDeleteDeconvolved.selectedProperty().get() ||
+                    chkDeleteRaw.selectedProperty().get());
+        });
+
 
         int row = 0;
         pane.add(labUsername, 0, row);
@@ -71,7 +83,8 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         pane.add(chkOmero,0, row++);
         pane.add(labHost, 0, row);
         pane.add(tfHost, 1, row++);
-        pane.add(chkDelete,0, row++);
+        pane.add(chkDeleteDeconvolved,0, row++);
+        pane.add(chkDeleteRaw,0, row++);
         pane.add(labelSameImageWarning,0,row);
 
         pane.setHgap(5);
@@ -82,7 +95,8 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
 
         // get the user entries
         String username = tfUsername.getText();
-        boolean deleteOnHRM = chkDelete.selectedProperty().get();
+        boolean deleteDeconvolvedOnHRM = chkDeleteDeconvolved.selectedProperty().get();
+        boolean deleteRawOnHRM = chkDeleteRaw.selectedProperty().get();
         String host;
         if(chkOmero.selectedProperty().get())
             host = tfHost.getText();
@@ -98,7 +112,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         String root = "C:\\Users\\dornier\\Downloads";//"\\\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
 
         // retrieve images
-        QPHRMRetrieveFromHRM.retrieve(qupath, root, username, deleteOnHRM, host);
+        QPHRMRetrieveFromHRM.retrieve(qupath, root, username, deleteDeconvolvedOnHRM, deleteRawOnHRM, host);
     }
 
 }

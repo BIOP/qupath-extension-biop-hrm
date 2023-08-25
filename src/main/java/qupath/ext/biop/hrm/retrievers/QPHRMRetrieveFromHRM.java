@@ -24,6 +24,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.biop.hrm.HRMConstants;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClients;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
@@ -47,8 +48,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,11 +76,11 @@ public class QPHRMRetrieveFromHRM {
      * @param qupath
      * @param root
      * @param owner
-     * @param deleteOnHRM
+     * @param deleteDeconvolved
      * @param omeroHost
      * @return
      */
-    public static void retrieve(QuPathGUI qupath, String root, String owner, boolean deleteOnHRM, String omeroHost){
+    public static void retrieve(QuPathGUI qupath, String root, String owner, boolean deleteDeconvolved, boolean deleteRaw, String omeroHost){
         // list all files retrieve in QuPath
         Map<File, String> imageTypeMap = listFileToUpload(root, owner);
         if(imageTypeMap.isEmpty())
@@ -101,7 +100,7 @@ public class QPHRMRetrieveFromHRM {
             }
         }
 
-        Task<Void> task = startProcess(qupath, imageTypeMap, deleteOnHRM, imageTypeMap.size(), client);
+        Task<Void> task = startProcess(qupath, imageTypeMap, deleteDeconvolved, deleteRaw, imageTypeMap.size(), client);
         buildDialog(task);
     }
 
@@ -111,13 +110,14 @@ public class QPHRMRetrieveFromHRM {
      *
      * @param qupath
      * @param imageTypeMap
-     * @param deleteOnHRM
+     * @param deleteDeconvolved
      * @param nbImagesToRetrieve
      * @param client
      * @return
      */
     private static Task<Void> startProcess(QuPathGUI qupath, Map<File, String> imageTypeMap,
-                                           boolean deleteOnHRM, int nbImagesToRetrieve, OmeroRawClient client) {
+                                           boolean deleteDeconvolved, boolean deleteRaw, int nbImagesToRetrieve,
+                                           OmeroRawClient client) {
         // Create a background Task
         Task<Void> task = new Task<Void>() {
             int nRetrievedImages = 0;
@@ -182,16 +182,28 @@ public class QPHRMRetrieveFromHRM {
                     if(retriever.buildTarget()) {
                         if (retriever.sendBack()) {
                             if (retriever.toQuPath(qupath)) {
-                                if (deleteOnHRM) {
-                                    if (deleteAssociatedFiles(imgFile))
-                                        logger.info("Image" + imgFile + " and associated files are deleted on HRM-Share folder");
+                                if (deleteDeconvolved) {
+                                    if (deleteDeconvolvedFiles(imgFile))
+                                        logger.info("Image [" + imgFile + "] and associated files are deleted from HRM-Share folder");
                                     else {
-                                        String smallMessage = "Cannot delete image " + imgFile + " neither associated files";
+                                        String smallMessage = "Cannot delete image [" + imgFile + "] neither associated files";
                                         message += "\n" + smallMessage;
                                         updateTitle(message);
                                         logger.error(smallMessage);
                                     }
                                 }
+
+                                if(deleteRaw){
+                                    if (deleteRawImages(imgFile, rawName))
+                                        logger.info("Image [" + imgFile + "] are deleted from HRM-Share folder");
+                                    else {
+                                        String smallMessage = "Cannot delete image [" + imgFile +"]";
+                                        message += "\n" + smallMessage;
+                                        updateTitle(message);
+                                        logger.error(smallMessage);
+                                    }
+                                }
+
                                 nRetrievedImages += 1;
                             }else{
                                 String smallMessage = "Cannot add image to QuPath for" +imgFile;
@@ -260,16 +272,52 @@ public class QPHRMRetrieveFromHRM {
      * @param imageFile
      * @return
      */
-    private static boolean deleteAssociatedFiles(File imageFile){
+    private static boolean deleteDeconvolvedFiles(File imageFile){
         // get image name
         String imageName = imageFile.getName();
 
         // remove file extension
-        imageName = imageName.substring(0,imageName.lastIndexOf("."));
+        imageName = imageName.substring(0, imageName.lastIndexOf("."));
 
         // parent file
         File parentFile = imageFile.getParentFile();
 
+        return deleteFilesAndParent(parentFile, imageName);
+    }
+
+    /**
+     * deletes raw image from HRM.
+     * Deletion is based on the raw image name
+     *
+     * @param imageFile
+     * @param rawImgName
+     * @return
+     */
+    private static boolean deleteRawImages(File imageFile, String rawImgName){
+        // deconvolved parent file
+        File parentFile = imageFile.getParentFile();
+
+        // change the path to point to the right folder
+        String rawParentPath = parentFile.getAbsolutePath().replace(HRMConstants.DECONVOLVED_FOLDER, HRMConstants.RAW_FOLDER);
+        File rawParentFile = new File(rawParentPath);
+
+        if(rawParentFile.exists()){
+            return deleteFilesAndParent(rawParentFile, rawImgName);
+        }else{
+            logger.warn("The path ["+ rawParentFile.getAbsolutePath()+"] does not exists ; raw images are not deleted");
+            return false;
+        }
+    }
+
+    /**
+     * delete file based on the name to match and also delete the parent folders (i.e. dataset and project folder)
+     * only if there are empty
+     *
+     * @param parentFile
+     * @param nameToMatch
+     * @return
+     */
+    private static boolean deleteFilesAndParent(File parentFile, String nameToMatch){
         // list all files in the parent folder
         File[] fileList = parentFile.listFiles();
 
@@ -279,7 +327,7 @@ public class QPHRMRetrieveFromHRM {
         // delete files that contain the image name
         boolean filesDeleted = true;
         for(File file : fileList) {
-            if (file.getName().contains(imageName)) {
+            if (file.getName().contains(nameToMatch)) {
                 logger.info("Delete file [" + file.getAbsoluteFile() + "]");
                 filesDeleted = filesDeleted && file.delete();
             }
@@ -287,6 +335,7 @@ public class QPHRMRetrieveFromHRM {
 
         fileList = parentFile.listFiles();
 
+        // delete parents
         try {
             if (fileList != null && fileList.length == 0) {
                 // delete dataset folder
@@ -307,8 +356,6 @@ public class QPHRMRetrieveFromHRM {
 
         return filesDeleted;
     }
-
-
 
     /**
      * returns the first file that contains image name, with the specified suffix.
