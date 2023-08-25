@@ -17,6 +17,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.apache.commons.io.FileUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -266,20 +267,48 @@ public class QPHRMRetrieveFromHRM {
         // remove file extension
         imageName = imageName.substring(0,imageName.lastIndexOf("."));
 
+        // parent file
+        File parentFile = imageFile.getParentFile();
+
         // list all files in the parent folder
-        File[] fileList = imageFile.getParentFile().listFiles();
+        File[] fileList = parentFile.listFiles();
 
         if (fileList == null)
             return false;
 
         // delete files that contain the image name
         boolean filesDeleted = true;
-        for(File file : fileList)
-            if(file.getName().contains(imageName))
+        for(File file : fileList) {
+            if (file.getName().contains(imageName)) {
+                logger.info("Delete file [" + file.getAbsoluteFile() + "]");
                 filesDeleted = filesDeleted && file.delete();
+            }
+        }
+
+        fileList = parentFile.listFiles();
+
+        try {
+            if (fileList != null && fileList.length == 0) {
+                // delete dataset folder
+                logger.info("Delete dataset directory ["+parentFile.getAbsoluteFile()+"]");
+                File parentParentFile = parentFile.getParentFile();
+                FileUtils.deleteDirectory(parentFile);
+
+                // delete project folder
+                File[] parentList = parentParentFile.listFiles();
+                if (parentList != null && parentList.length == 0) {
+                    logger.info("Delete project directory ["+parentParentFile.getAbsoluteFile()+"]");
+                    FileUtils.deleteDirectory(parentParentFile);
+                }
+            }
+        }catch (IOException e){
+            filesDeleted = false;
+        }
 
         return filesDeleted;
     }
+
+
 
     /**
      * returns the first file that contains image name, with the specified suffix.
@@ -498,7 +527,7 @@ public class QPHRMRetrieveFromHRM {
         File[] fList = directory.listFiles();
         if(fList != null)
             for (File file : fList) {
-                if (file.isFile() &&  ( file.getName().endsWith(".dv") || file.getName().endsWith(".lif") ) ) { // TODO change to .ids
+                if (file.isFile() &&  file.getName().endsWith(".ids") ) { // TODO change to .ids
                     imageTypeMap.put(file, typeName);
                 } else if (file.isDirectory()) {
                     recursiveFileListing(file, typeName, imageTypeMap);
