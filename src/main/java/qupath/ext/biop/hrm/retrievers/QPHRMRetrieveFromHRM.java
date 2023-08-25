@@ -537,7 +537,7 @@ public class QPHRMRetrieveFromHRM {
         if(!ownerFolder.exists()) {Dialogs.showErrorNotification("List files to upload","Path "+ownerFolder+" does not exists"); return new LinkedHashMap<>();}
 
         // check deconvolved folder
-        File deconvolvedFolder = new File(ownerFolder + File.separator + "Deconvolved");
+        File deconvolvedFolder = new File(ownerFolder + File.separator + HRMConstants.DECONVOLVED_FOLDER);
         if(!deconvolvedFolder.isDirectory()) {Dialogs.showErrorNotification("List files to upload","Path "+deconvolvedFolder+" does not exists"); return new LinkedHashMap<>();}
 
         // check QuPath folder

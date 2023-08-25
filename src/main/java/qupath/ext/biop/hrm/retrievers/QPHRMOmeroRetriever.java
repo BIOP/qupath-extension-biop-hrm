@@ -102,7 +102,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
         return false;
     }
 
-    // TODO ask Pete if there is a way to import an image in a qp project by scripting
+    //TODO ask Pete if there is a way to import an image in a qp project by scripting
     @Override
     public boolean toQuPath(QuPathGUI qupath) {
         // get the image uri
