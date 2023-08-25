@@ -540,12 +540,8 @@ public class QPHRMRetrieveFromHRM {
         File deconvolvedFolder = new File(ownerFolder + File.separator + HRMConstants.DECONVOLVED_FOLDER);
         if(!deconvolvedFolder.isDirectory()) {Dialogs.showErrorNotification("List files to upload","Path "+deconvolvedFolder+" does not exists"); return new LinkedHashMap<>();}
 
-        // check QuPath folder
-        File qupathFolder = new File(deconvolvedFolder + File.separator + "QuPath");
-        if(!qupathFolder.isDirectory()) {Dialogs.showErrorNotification("List files to upload","Path "+qupathFolder+" does not exists"); return new LinkedHashMap<>();}
-
         // list category folders (local, omero, s3)
-        File[] dirs = qupathFolder.listFiles();
+        File[] dirs = deconvolvedFolder.listFiles();
         LinkedHashMap<File, String> imageTypeMap = new LinkedHashMap<>();
 
         // put all images within these folders in a map with their category
@@ -556,7 +552,7 @@ public class QPHRMRetrieveFromHRM {
 
         // check if there are files to retrieve
         if(imageTypeMap.isEmpty())
-            Dialogs.showErrorNotification("Empty directory","There is not image to retrieve from " +qupathFolder.getAbsolutePath());
+            Dialogs.showErrorNotification("Empty directory","There is not image to retrieve from " +deconvolvedFolder.getAbsolutePath());
 
         return imageTypeMap;
     }

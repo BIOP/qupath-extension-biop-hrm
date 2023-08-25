@@ -90,13 +90,8 @@ public class QPHRMLocalSender implements QPHRMSender {
         if(!rawPathFile.isDirectory())
             if(!rawPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+rawPathFile+" does not exists"); return this;}
 
-        // check QuPath folder
-        File qupathPathFile = new File(rawPathFile + File.separator + "QuPath");
-        if(!qupathPathFile.isDirectory())
-            if(!qupathPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+qupathPathFile+" does not exists"); return this;}
-
         // check local folder
-        File localPathFile = new File(qupathPathFile + File.separator + HRMConstants.LOCAL_FOLDER);
+        File localPathFile = new File(rawPathFile + File.separator + HRMConstants.LOCAL_FOLDER);
         if(!localPathFile.isDirectory())
             if(!localPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+localPathFile+" does not exists"); return this;}
 
