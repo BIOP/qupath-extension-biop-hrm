@@ -2,6 +2,7 @@ package qupath.ext.biop.hrm.senders;
 
 import omero.gateway.model.DatasetData;
 import omero.gateway.model.ProjectData;
+import qupath.ext.biop.hrm.HRMConstants;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
 import qupath.ext.biop.servers.omero.raw.OmeroRawScripting;
@@ -84,7 +85,7 @@ public class QPHRMOmeroSender implements QPHRMSender {
         if(!userPathFile.isDirectory()) {Dialogs.showErrorNotification("Building destination folder","Path "+userPathFile+" does not exists"); return this;}
 
         // get or create "Raw" folder
-        File rawPathFile = new File(userPathFile + File.separator + "Raw");
+        File rawPathFile = new File(userPathFile + File.separator + HRMConstants.RAW_FOLDER);
         if(!rawPathFile.isDirectory())
             if(!rawPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+rawPathFile+" does not exists"); return this;}
 
@@ -94,7 +95,7 @@ public class QPHRMOmeroSender implements QPHRMSender {
             if(!qupathPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+qupathPathFile+" does not exists"); return this;}
 
         // get or create "omero" folder
-        File localPathFile = new File(qupathPathFile + File.separator + "omero");
+        File localPathFile = new File(qupathPathFile + File.separator + HRMConstants.OMERO_FOLDER);
         if(!localPathFile.isDirectory())
             if(!localPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+localPathFile+" does not exists"); return this;}
 

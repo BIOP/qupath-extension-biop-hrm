@@ -1,6 +1,7 @@
 package qupath.ext.biop.hrm.senders;
 
 import org.apache.commons.io.FileUtils;
+import qupath.ext.biop.hrm.HRMConstants;
 import qupath.ext.biop.hrm.senders.QPHRMSender;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
@@ -85,7 +86,7 @@ public class QPHRMLocalSender implements QPHRMSender {
         if(!userPathFile.isDirectory()) {Dialogs.showErrorNotification("Building destination folder","Path "+userPathFile+" does not exists"); return this;}
 
         // check Raw folder
-        File rawPathFile = new File(userPathFile + File.separator + "Raw");
+        File rawPathFile = new File(userPathFile + File.separator + HRMConstants.RAW_FOLDER);
         if(!rawPathFile.isDirectory())
             if(!rawPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+rawPathFile+" does not exists"); return this;}
 
@@ -95,7 +96,7 @@ public class QPHRMLocalSender implements QPHRMSender {
             if(!qupathPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+qupathPathFile+" does not exists"); return this;}
 
         // check local folder
-        File localPathFile = new File(qupathPathFile + File.separator + "Local");
+        File localPathFile = new File(qupathPathFile + File.separator + HRMConstants.LOCAL_FOLDER);
         if(!localPathFile.isDirectory())
             if(!localPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+localPathFile+" does not exists"); return this;}
 
