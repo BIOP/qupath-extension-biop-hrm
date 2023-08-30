@@ -11,7 +11,7 @@ It is not compatible with earlier QuPath versions.
 
 *Downloads*
 
-- To install the HRM extension, download the latest `qupath-extension-biop-hrm-[version].jar` file from [releases](https://github.com/BIOP/qupath-extension-biop-hrm/releases/latest drag the .jar onto the main QuPath window.
+- To install the HRM extension, download the latest `qupath-extension-biop-hrm-[version].jar` file from [releases](https://github.com/BIOP/qupath-extension-biop-hrm/releases/latest) drag the .jar onto the main QuPath window.
 
 - If you haven't installed any extensions before, you'll be prompted to select a QuPath user directory.
 The extension will then be copied to a location inside that directory.
@@ -34,4 +34,4 @@ The output will be under `build/libs`.
 You can drag the jar file on top of QuPath to install the extension.
 
 ## Documentation
-You can find all the documentation on how to use this extension on our [wiki page](https://wiki-biop.epfl.ch/en/IPA/QuPath/HRM).
+You can find all the documentation on how to use this extension on our [wiki page](https://wiki-biop.epfl.ch/en/ipa/qupath/hrm).
