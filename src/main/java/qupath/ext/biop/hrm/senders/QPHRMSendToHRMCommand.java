@@ -7,7 +7,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -30,7 +30,7 @@ public class QPHRMSendToHRMCommand implements Runnable {
 
         // check if a project is open
         if (project == null) {
-            Dialogs.showNoProjectError("Script editor");
+            Dialogs.showErrorMessage("No Project", "No project is available!");
             return;
         }
 

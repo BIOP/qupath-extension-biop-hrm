@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;

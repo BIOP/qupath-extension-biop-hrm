@@ -8,7 +8,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.projects.Project;
 
 import java.awt.image.BufferedImage;
@@ -25,7 +26,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
 
         // check if a project is open
         if (project == null) {
-            Dialogs.showNoProjectError("Script editor");
+            Dialogs.showErrorMessage("No project", "No project is available!");
             return;
         }
 

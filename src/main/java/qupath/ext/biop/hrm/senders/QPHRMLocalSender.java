@@ -2,8 +2,7 @@ package qupath.ext.biop.hrm.senders;
 
 import org.apache.commons.io.FileUtils;
 import qupath.ext.biop.hrm.HRMConstants;
-import qupath.ext.biop.hrm.senders.QPHRMSender;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 
 import java.awt.image.BufferedImage;

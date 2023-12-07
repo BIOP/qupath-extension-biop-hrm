@@ -10,7 +10,6 @@ import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
 
 import java.io.File;
 import java.io.IOException;

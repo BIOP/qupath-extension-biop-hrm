@@ -5,14 +5,12 @@ import omero.gateway.model.ProjectData;
 import qupath.ext.biop.hrm.HRMConstants;
 import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
-import qupath.ext.biop.servers.omero.raw.OmeroRawScripting;
 import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collection;
 
 public class QPHRMOmeroSender implements QPHRMSender {
