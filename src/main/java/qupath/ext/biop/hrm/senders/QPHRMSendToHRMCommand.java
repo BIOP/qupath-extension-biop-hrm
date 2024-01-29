@@ -1,6 +1,5 @@
 package qupath.ext.biop.hrm.senders;
 
-import javafx.application.Platform;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;

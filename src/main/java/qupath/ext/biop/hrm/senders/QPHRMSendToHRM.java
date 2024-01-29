@@ -107,7 +107,7 @@ public class QPHRMSendToHRM {
                         updateProgress(i, nbImagesToDownload);
 
                         // update username for local sender
-                        String omeroUsername = ((OmeroRawImageServer) omeroServersList.get(i)).getClient().getLoggedInUser().getOmeName().getValue();
+                        String omeroUsername = ((OmeroRawImageServer) omeroServersList.get(i)).getClient().getLoggedInUser().getUserName();
                         if (finalUsername.equals(""))
                             finalUsername = omeroUsername;
 
@@ -204,7 +204,7 @@ public class QPHRMSendToHRM {
     private static QPHRMOmeroSender downloadOmeroImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite, String username){
         QPHRMOmeroSender qphrmOmeroSender = new QPHRMOmeroSender()
                 .setClient(((OmeroRawImageServer) imageServer).getClient())
-                .setImage(imageServer)
+                .setImageServer(imageServer)
                 .buildDestinationFolder(rootFolder, username)
                 .copy(overwrite);
         try {
@@ -228,7 +228,7 @@ public class QPHRMSendToHRM {
      */
     private static QPHRMLocalSender downloadLocalImage(ImageServer<BufferedImage> imageServer, String rootFolder, boolean overwrite, String username){
         QPHRMLocalSender qphrmLocalSender = new QPHRMLocalSender()
-                .setImage(imageServer)
+                .setImageServer(imageServer)
                 .buildDestinationFolder(rootFolder, username)
                 .copy(overwrite);
         try {

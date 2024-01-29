@@ -1,14 +1,19 @@
 package qupath.ext.biop.hrm.retrievers;
 
-import omero.gateway.model.DatasetData;
-import omero.gateway.model.ImageData;
-import omero.gateway.model.MapAnnotationData;
+import fr.igred.omero.annotations.FileAnnotationWrapper;
+import fr.igred.omero.annotations.MapAnnotationWrapper;
+import fr.igred.omero.exception.AccessException;
+import fr.igred.omero.exception.OMEROServerError;
+import fr.igred.omero.exception.ServiceException;
+import fr.igred.omero.repository.DatasetWrapper;
+import fr.igred.omero.repository.ImageWrapper;
+import omero.gateway.model.FileAnnotationData;
 import omero.model.NamedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
+import qupath.ext.biop.servers.omero.raw.client.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
-import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
+import qupath.ext.biop.servers.omero.raw.utils.Utils;
 import qupath.lib.gui.QuPathGUI;
 
 import java.io.File;
@@ -17,8 +22,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class QPHRMOmeroRetriever implements QPHRMRetriever {
@@ -40,7 +45,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     private File logFile;
 
     /** Dataset id where to upload the deconvolved image */
-    private long target;
+    private long target = -1;
 
     /** OMERO id of the uploaded deconvolved image */
     private long imageId;
@@ -55,50 +60,79 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     @Override
     public boolean sendBack() {
         // read the target dataset
-        DatasetData dataset = OmeroRawTools.readOmeroDataset(this.client, this.target);
-        if(dataset != null){
-            // read child images and check if it already exists on OMERO.
-            // if not, the image is not uploaded
-            Set<ImageData> imagesWithinDataset = (Set<ImageData>)dataset.getImages();
-            if(imagesWithinDataset.stream().noneMatch(e -> e.getName().equals(this.imageToSend.getName()))) {
-                List<Long> ids = OmeroRawTools.uploadImage(this.client, dataset, this.imageToSend.toString());
-
-                if(!ids.isEmpty()){
-                    this.imageId = ids.get(0);
-
-                    // convert key value pairs to omero-compatible object NamedValue
-                    this.metadata.forEach((header,map)->{
-                        List<NamedValue> omeroKeyValues = new ArrayList<>();
-                        map.forEach((key, value)->omeroKeyValues.add(new NamedValue(key,value)));
-
-                        // set annotation map
-                        MapAnnotationData newOmeroAnnotationMap = new MapAnnotationData();
-                        newOmeroAnnotationMap.setContent(omeroKeyValues);
-
-                        // set namespace
-                        newOmeroAnnotationMap.setNameSpace(header);
-
-                        // send key-values on OMERO
-                        OmeroRawTools.addKeyValuesOnOmero(newOmeroAnnotationMap, this.client, this.imageId);
-                    });
-
-                    // add the logFile as attachment to the image
-                    OmeroRawTools.addAttachmentToOmero(this.logFile, this.client,this.imageId,"text/plain");
-                    return true;
-
-                } else {
-                    logger.warn("Upload from HRM : Image "+this.imageToSend.toString()+" cannot be uploaded on OMERO");
-                }
-            } else {
-                logger.warn("Existing images on OMERO : Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
-                ImageData image = imagesWithinDataset.stream().filter(e -> e.getName().equals(this.imageToSend.getName())).collect(Collectors.toList()).get(0);
-                this.imageId = image.getId();
-                return true;
-            }
-        } else {
-            logger.error("Un-existing object : The dataset "+this.target+" does not exist on OMERO");
+        DatasetWrapper dataset;
+        try {
+            dataset = this.client.getSimpleClient().getDataset(this.target);
+        }catch(ServiceException | ExecutionException | AccessException e){
+            Utils.errorLog(logger, "Send back", "Un-existing object : The dataset '"+this.target+"' does not exist on OMERO", e, false);
+            return false;
         }
-        return false;
+
+        // read child images and check if it already exists on OMERO.
+        // if not, the image is not uploaded
+        List<ImageWrapper> imagesWithinDataset = new ArrayList<>();
+        boolean imageRead = false;
+        try {
+          imagesWithinDataset = dataset.getImages(this.client.getSimpleClient());
+          imageRead = true;
+        }catch(AccessException | ServiceException | ExecutionException e){
+            Utils.errorLog(logger, "Send back", "Cannot get images from dataset '"+dataset.getName()+"' ; Import new images anyway", e, false);
+        }
+
+        if(!imageRead || imagesWithinDataset.stream().noneMatch(e -> e.getName().equals(this.imageToSend.getName()))) {
+            List<Long> ids;
+            try{
+                ids = dataset.importImage(this.client.getSimpleClient(), this.imageToSend.toString());
+            }catch(OMEROServerError | ServiceException | AccessException | ExecutionException e){
+                Utils.errorLog(logger, "Send back", "Cannot import image '"+this.imageToSend.toString()+"' on OMERO", e, false);
+                return false;
+            }
+
+            this.imageId = ids.get(0);
+            ImageWrapper img;
+            try{
+                img = this.client.getSimpleClient().getImage(this.imageId);
+            }catch(ServiceException | AccessException | ExecutionException e){
+                Utils.errorLog(logger, "Send back", "Cannot read image '"+this.imageId+"' from OMERO", e, false);
+                return false;
+            }
+
+            // convert key value pairs to omero-compatible object NamedValue
+            this.metadata.forEach((header,map)->{
+                List<NamedValue> omeroKeyValues = new ArrayList<>();
+                map.forEach((key, value)->omeroKeyValues.add(new NamedValue(key,value)));
+
+                // set annotation map
+                MapAnnotationWrapper mapAnnotationWrapper = new MapAnnotationWrapper();
+                mapAnnotationWrapper.setContent(omeroKeyValues);
+
+                // set namespace
+                mapAnnotationWrapper.setNameSpace(header);
+
+                // send key-values on OMERO
+                try {
+                    img.link(this.client.getSimpleClient(), mapAnnotationWrapper);
+                }catch(ServiceException | AccessException | ExecutionException e){
+                    Utils.errorLog(logger, "Send back", "Cannot attach metadata as key-values pairs to image '"+this.imageId+"'", e, false);
+                }
+            });
+
+            // add the logFile as attachment to the image
+            FileAnnotationData fileAnnotationData = new FileAnnotationData(this.logFile);
+            FileAnnotationWrapper fileAnnotationWrapper = new FileAnnotationWrapper(fileAnnotationData);
+            try{
+                img.link(this.client.getSimpleClient(), fileAnnotationWrapper);
+            }catch(ServiceException | AccessException | ExecutionException e){
+                Utils.errorLog(logger, "Send back", "Cannot attach the log file to image '"+this.imageId+"'", e, false);
+            }
+            return true;
+
+        } else {
+            logger.warn("Existing images on OMERO : Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
+            ImageWrapper image = imagesWithinDataset.stream().filter(e -> e.getName().equals(this.imageToSend.getName())).collect(Collectors.toList()).get(0);
+            this.imageId = image.getId();
+            return true;
+        }
     }
 
     //TODO ask Pete if there is a way to import an image in a qp project by scripting
@@ -124,7 +158,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
         }catch(IOException e){
             logger.error("Image to QuPath : An error occured when trying to add image "+this.imageId+" to QuPath project");
             logger.error(String.valueOf(e));
-            logger.error(OmeroRawTools.getErrorStackTraceAsString(e));
+            logger.error(Utils.getErrorStackTraceAsString(e));
             return false;
         }
     }
@@ -150,10 +184,14 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
             // if orphaned image
             if(omeroDataset.equals("None")){
                 // create a new orphaned dataset and retrieve its id
-                DatasetData dataset = OmeroRawTools.createNewDataset(this.client, "HRM_"+ new Date());
-                if(dataset != null)
-                    this.target = dataset.getId();
-                else return false;
+                DatasetWrapper datasetWrapper = new DatasetWrapper("HRM_"+ new Date(), "");
+                try {
+                    datasetWrapper.saveAndUpdate(this.client.getSimpleClient());
+                    this.target = datasetWrapper.getId();
+                }catch (AccessException | ExecutionException | ServiceException e){
+                    Utils.errorLog(logger, "Build target", "Cannot create OMERO dataset '"+datasetWrapper.getName()+"'", e, false);
+                }
+                return this.target > 0;
             }else
                 // parse the parent dataset id
                 this.target = Integer.parseInt(omeroDataset.split("_")[0]);

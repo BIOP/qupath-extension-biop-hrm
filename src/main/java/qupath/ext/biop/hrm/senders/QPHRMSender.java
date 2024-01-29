@@ -48,8 +48,8 @@ public interface QPHRMSender {
     /**
      * set the current image server
      *
-     * @param image
+     * @param imageServer
      * @return
      */
-    QPHRMSender setImage(ImageServer<BufferedImage> image);
+    QPHRMSender setImageServer(ImageServer<BufferedImage> imageServer);
 }

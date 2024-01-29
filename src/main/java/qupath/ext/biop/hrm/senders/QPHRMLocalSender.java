@@ -18,7 +18,7 @@ public class QPHRMLocalSender implements QPHRMSender {
     private String destinationFolder = "";
 
     /** image to send to HRM */
-    private ImageServer<BufferedImage> image;
+    private ImageServer<BufferedImage> imageServer;
     private boolean isSent = false;
     private boolean isFailed = false;
     private boolean isSkipped = false;
@@ -53,7 +53,7 @@ public class QPHRMLocalSender implements QPHRMSender {
 
         // check if the destination folder exists
         if(destinationFolderPath.exists()) {
-            URI uri = this.image.getURIs().iterator().next();
+            URI uri = this.imageServer.getURIs().iterator().next();
 
             try {
                 // check if the image already exists on HRM
@@ -100,8 +100,8 @@ public class QPHRMLocalSender implements QPHRMSender {
     }
 
     @Override
-    public QPHRMLocalSender setImage(ImageServer<BufferedImage> image) {
-        this.image = image;
+    public QPHRMLocalSender setImageServer(ImageServer<BufferedImage> imageServer) {
+        this.imageServer = imageServer;
         return this;
     }
 

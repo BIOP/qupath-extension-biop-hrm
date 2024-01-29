@@ -1,24 +1,33 @@
 package qupath.ext.biop.hrm.senders;
 
-import omero.gateway.model.DatasetData;
-import omero.gateway.model.ProjectData;
+import fr.igred.omero.exception.AccessException;
+import fr.igred.omero.exception.OMEROServerError;
+import fr.igred.omero.exception.ServiceException;
+import fr.igred.omero.repository.DatasetWrapper;
+import fr.igred.omero.repository.ImageWrapper;
+import fr.igred.omero.repository.ProjectWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.biop.hrm.HRMConstants;
-import qupath.ext.biop.servers.omero.raw.OmeroRawClient;
+import qupath.ext.biop.servers.omero.raw.client.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServer;
-import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
-import qupath.fx.dialogs.Dialogs;
+import qupath.ext.biop.servers.omero.raw.utils.OmeroRawTools;
+import qupath.ext.biop.servers.omero.raw.utils.Utils;
 import qupath.lib.images.servers.ImageServer;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class QPHRMOmeroSender implements QPHRMSender {
+    private final static Logger logger = LoggerFactory.getLogger(QPHRMOmeroSender.class);
+
     /** path to the HRM-user folder where to save the image */
     private String destinationFolder = "";
 
     /** image to send to HRM */
-    private OmeroRawImageServer image;
+    private OmeroRawImageServer imageServer;
 
     /** OMERO client */
     private OmeroRawClient client;
@@ -26,9 +35,7 @@ public class QPHRMOmeroSender implements QPHRMSender {
     private boolean isFailed = false;
     private boolean isSkipped = false;
 
-    public QPHRMOmeroSender(){
-
-    }
+    public QPHRMOmeroSender(){}
 
     @Override
     public String getDestinationFolder() { return this.destinationFolder; }
@@ -54,18 +61,19 @@ public class QPHRMOmeroSender implements QPHRMSender {
 
         // check if the destination folder exists
         if(destinationFolderFile.exists()) {
-            Long omeroId = this.image.getId();
-            // check if the image already exists on HRM
-            String imageName = OmeroRawTools.readOmeroImage(this.client, omeroId).getName();
+            String imageName = this.imageServer.getImageWrapper().getName();
             if(overwrite || !(new File(this.destinationFolder + File.separator + imageName).exists())) {
                 // copy image in HRM folder
-                if(OmeroRawTools.downloadImage(this.client, omeroId, destinationFolderFile.toString())) {
+                try {
+                    this.imageServer.getImageWrapper().download(this.client.getSimpleClient(), destinationFolderFile.toString());
                     this.isSent = true;
+                }catch(AccessException | OMEROServerError | ServiceException e){
+                    Utils.errorLog(logger, "Copying OMERO file", "Cannot download image '"+this.imageServer.getId()+"' from OMERO",e,false);
+                    this.isFailed = true;
                 }
-                else this.isFailed = true;
             }else this.isSkipped = true;
         } else{
-            Dialogs.showErrorNotification("Copying OMERO file","Destination folder "+this.destinationFolder+" does not exists");
+            Utils.errorLog(logger, "Copying OMERO file","Destination folder "+this.destinationFolder+" does not exists", false);
             this.isFailed = true;
         }
         return this;
@@ -80,48 +88,52 @@ public class QPHRMOmeroSender implements QPHRMSender {
 
         // check if the user folder already exists and stop if it does not.
         File userPathFile = new File(rootPath + File.separator + username);
-        if(!userPathFile.isDirectory()) {Dialogs.showErrorNotification("Building destination folder","Path "+userPathFile+" does not exists"); return this;}
+        if(!userPathFile.isDirectory()) {Utils.errorLog(logger, "Building destination folder","Path "+userPathFile+" does not exists", true); return this;}
 
         // get or create "Raw" folder
         File rawPathFile = new File(userPathFile + File.separator + HRMConstants.RAW_FOLDER);
         if(!rawPathFile.isDirectory())
-            if(!rawPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+rawPathFile+" does not exists"); return this;}
+            if(!rawPathFile.mkdir()){Utils.errorLog(logger, "Building destination folder","Path "+rawPathFile+" does not exists", true); return this;}
 
         // get or create "omero" folder
         File localPathFile = new File(rawPathFile + File.separator + HRMConstants.OMERO_FOLDER);
         if(!localPathFile.isDirectory())
-            if(!localPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+localPathFile+" does not exists"); return this;}
+            if(!localPathFile.mkdir()){Utils.errorLog(logger, "Building destination folder","Path "+localPathFile+" does not exists", true); return this;}
 
         // get image parent dataset
-        String projectName = "";
-        String datasetName = "";
-        Collection<DatasetData> datasets = (Collection<DatasetData>) OmeroRawTools.getParent(client, "Image", this.image.getId());
+        String projectName = "None";
+        String datasetName = "None";
+        ImageWrapper imageWrapper = this.imageServer.getImageWrapper();
+        try {
+            List<DatasetWrapper> datasets = (List<DatasetWrapper>)OmeroRawTools.getParentContainer(client, imageWrapper, false);
 
-        if(datasets.isEmpty()){
-            projectName = "None";
-            datasetName = "None";
-        }else{
             // get dataset parent project
-            DatasetData dataset = datasets.iterator().next();
-            datasetName = dataset.getId()+"_"+dataset.getName();
-            Collection<ProjectData> projects = (Collection<ProjectData>) OmeroRawTools.getParent(client, "Dataset",dataset.getId());
-            if(projects.isEmpty())
-                projectName = "None";
-            else {
-                ProjectData project = projects.iterator().next();
-                projectName = project.getId()+"_"+project.getName();
+            if(!datasets.isEmpty()) {
+                DatasetWrapper datasetWrapper = datasets.iterator().next();
+                datasetName = datasetWrapper.getId() + "_" + datasetWrapper.getName();
+                try{
+                    List<ProjectWrapper> projects = (List<ProjectWrapper>)OmeroRawTools.getParentContainer(client, datasetWrapper, false);
+                    if (!projects.isEmpty()) {
+                        ProjectWrapper project = projects.iterator().next();
+                        projectName = project.getId() + "_" + project.getName();
+                    }
+                } catch (AccessException | ServiceException | ExecutionException | OMEROServerError e) {
+                    Utils.errorLog(logger, "Building destination folder","Cannot get the parent project of dataset "+datasetWrapper.getName(),e, false);
+                }
             }
+        } catch (AccessException | ServiceException | ExecutionException | OMEROServerError e) {
+            Utils.errorLog(logger, "Building destination folder","Cannot get the parent dataset of image "+imageWrapper.getName(),e, false);
         }
 
         // get or create "project" folder
         File projectPathFile = new File(localPathFile + File.separator + projectName);
         if(!projectPathFile.isDirectory())
-            if(!projectPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+projectPathFile+" does not exists"); return this;}
+            if(!projectPathFile.mkdir()){Utils.errorLog(logger, "Building destination folder","Path "+projectPathFile+" does not exists", true); return this;}
 
         // get or create "dataset" folder
         File datasetPathFile = new File(projectPathFile + File.separator + datasetName);
         if(!datasetPathFile.isDirectory())
-            if(!datasetPathFile.mkdir()){Dialogs.showErrorNotification("Building destination folder","Path "+datasetPathFile+" does not exists"); return this;}
+            if(!datasetPathFile.mkdir()){Utils.errorLog(logger, "Building destination folder","Path "+datasetPathFile+" does not exists", true); return this;}
 
         this.destinationFolder = datasetPathFile.toString();
 
@@ -129,8 +141,8 @@ public class QPHRMOmeroSender implements QPHRMSender {
     }
 
     @Override
-    public QPHRMOmeroSender setImage(ImageServer<BufferedImage> image) {
-        this.image = (OmeroRawImageServer) image;
+    public QPHRMOmeroSender setImageServer(ImageServer<BufferedImage> imageServer) {
+        this.imageServer = (OmeroRawImageServer) imageServer;
         return this;
     }
 

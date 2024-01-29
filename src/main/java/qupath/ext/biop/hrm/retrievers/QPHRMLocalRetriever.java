@@ -4,7 +4,7 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
-import qupath.ext.biop.servers.omero.raw.OmeroRawTools;
+import qupath.ext.biop.servers.omero.raw.utils.Utils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -93,7 +93,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
         }catch(IOException e){
             logger.error("Image to QuPath : An error occurred when trying to add image "+imageURI+" to QuPath project");
             logger.error(String.valueOf(e));
-            logger.error(OmeroRawTools.getErrorStackTraceAsString(e));
+            logger.error(Utils.getErrorStackTraceAsString(e));
             return false;
         }
     }
