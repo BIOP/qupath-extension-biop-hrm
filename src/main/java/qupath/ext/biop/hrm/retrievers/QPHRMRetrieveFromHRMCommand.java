@@ -1,5 +1,6 @@
 package qupath.ext.biop.hrm.retrievers;
 
+import javafx.beans.property.StringProperty;
 import javafx.geometry.Pos;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -10,14 +11,24 @@ import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI;
 
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.Project;
 
 import java.awt.image.BufferedImage;
 
 public class QPHRMRetrieveFromHRMCommand implements Runnable {
     private final QuPathGUI qupath;
+
+    /**
+     * default username appearing when log-in on OMERO
+     */
+    private static StringProperty defaultUsername;
+    private static StringProperty omeroDefaultServerAddress;
+
     public QPHRMRetrieveFromHRMCommand(QuPathGUI qupath) {
         this.qupath = qupath;
+        defaultUsername = PathPrefs.createPersistentPreference("defaultUsername", "");
+        omeroDefaultServerAddress = PathPrefs.createPersistentPreference("omeroDefaultServer", "https://omero-server.epfl.ch");
     }
 
     @Override
@@ -33,11 +44,11 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         // build teh GUI
         GridPane pane = new GridPane();
         Label labUsername = new Label("HRM Username");
-        TextField tfUsername = new TextField("");
+        TextField tfUsername = new TextField(defaultUsername.get());
         labUsername.setLabelFor(tfUsername);
 
         Label labHost = new Label("OMERO Host (https://hostname)");
-        TextField tfHost = new TextField("https://omero-server.epfl.ch");
+        TextField tfHost = new TextField(omeroDefaultServerAddress.get());
         labHost.setLabelFor(tfHost);
         labHost.setDisable(true);
         tfHost.setDisable(true);
@@ -99,8 +110,10 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         boolean deleteDeconvolvedOnHRM = chkDeleteDeconvolved.selectedProperty().get();
         boolean deleteRawOnHRM = chkDeleteRaw.selectedProperty().get();
         String host;
-        if(chkOmero.selectedProperty().get())
+        if(chkOmero.selectedProperty().get()) {
             host = tfHost.getText();
+            omeroDefaultServerAddress.set(host);
+        }
         else host= "";
 
         // username is mandatory
@@ -108,6 +121,7 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
             Dialogs.showErrorNotification("Invalid username", "Please fill the username field");
             return;
         }
+        defaultUsername.set(username);
 
         // set the root folder
         String root = "C:\\Users\\dornier\\Downloads";//"\\\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
