@@ -36,7 +36,7 @@ dependencies {
     implementation "io.github.qupath:qupath-core:${qupathVersion}"
     implementation "io.github.qupath:qupath-gui-fx:${qupathVersion}"
 
-    implementation "org.openmicroscopy:omero-gateway:5.8.1"
+    implementation "org.openmicroscopy:omero-gateway:5.9.0"
     implementation "ch.epfl.biop:qupath-extension-biop-omero:1.0.0-SNAPSHOT"
     implementation "org.jsoup:jsoup:1.15.4"
     implementation "fr.igred:simple-omero-client:5.16.0"
