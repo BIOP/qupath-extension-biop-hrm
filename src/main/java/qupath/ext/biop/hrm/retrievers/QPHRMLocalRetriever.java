@@ -63,8 +63,8 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
             }
             else logger.error("Sending back images : Cannot create the folder "+this.target.getAbsolutePath());
         }catch(IOException e){
-            logger.error("Sending back images : Error during folder creation "+this.target.getAbsolutePath()+
-                            " or during files copy from "+this.imageToSend.getParentFile().getAbsolutePath());
+            Utils.errorLog(logger,"Sending back images", "Error during folder creation "+this.target.getAbsolutePath()+
+                    " or during files copy from "+this.imageToSend.getParentFile().getAbsolutePath(), e,false);
         }
         return false;
     }
@@ -91,9 +91,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
             QPHRMRetrieveFromHRM.toQuPath(qupath, null, imageURI, omeroKeyValues);
             return true;
         }catch(IOException e){
-            logger.error("Image to QuPath : An error occurred when trying to add image "+imageURI+" to QuPath project");
-            logger.error(String.valueOf(e));
-            logger.error(Utils.getErrorStackTraceAsString(e));
+            Utils.errorLog(logger, "Image to QuPath", "An error occurred when trying to add image "+imageURI+" to QuPath project",e,false);
             return false;
         }
     }

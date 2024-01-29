@@ -118,15 +118,17 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
             });
 
             // add the logFile as attachment to the image
-            FileAnnotationData fileAnnotationData = new FileAnnotationData(this.logFile);
-            FileAnnotationWrapper fileAnnotationWrapper = new FileAnnotationWrapper(fileAnnotationData);
-            try{
-                img.link(this.client.getSimpleClient(), fileAnnotationWrapper);
-            }catch(ServiceException | AccessException | ExecutionException e){
-                Utils.errorLog(logger, "Send back", "Cannot attach the log file to image '"+this.imageId+"'", e, false);
+            if(this.logFile != null) {
+                try {
+                    img.addFile(this.client.getSimpleClient(), this.logFile);
+                } catch (ExecutionException | InterruptedException e) {
+                    Utils.errorLog(logger, "Send back", "Cannot attach the log file to image '" + this.imageId + "'", e, false);
+                }
+                return true;
+            }else{
+                Utils.warnLog(logger, "Send back", "The log file is not available in HRM folder", false);
+                return false;
             }
-            return true;
-
         } else {
             logger.warn("Existing images on OMERO : Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
             ImageWrapper image = imagesWithinDataset.stream().filter(e -> e.getName().equals(this.imageToSend.getName())).collect(Collectors.toList()).get(0);
@@ -156,9 +158,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
             QPHRMRetrieveFromHRM.toQuPath(qupath, omeroBuilder, imageURI, omeroKeyValues);
             return true;
         }catch(IOException e){
-            logger.error("Image to QuPath : An error occured when trying to add image "+this.imageId+" to QuPath project");
-            logger.error(String.valueOf(e));
-            logger.error(Utils.getErrorStackTraceAsString(e));
+            Utils.errorLog(logger, "Image to QuPath", "An error occurred when trying to add image \"+this.imageId+\" to QuPath project",e,false);
             return false;
         }
     }

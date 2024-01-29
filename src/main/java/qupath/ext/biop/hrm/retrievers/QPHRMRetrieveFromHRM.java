@@ -29,6 +29,7 @@ import qupath.ext.biop.servers.omero.raw.client.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.client.OmeroRawClients;
 import qupath.ext.biop.servers.omero.raw.utils.OmeroRawTools;
 import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -491,8 +492,8 @@ public class QPHRMRetrieveFromHRM {
             gp.setVgap(5.0);
             TextField tf = new TextField("");
             tf.setPrefWidth(400);
-            PaneTools.addGridRow(gp, 0, 0, "Enter OMERO URL", new Label("Enter an OMERO server URL to browse (e.g. http://idr.openmicroscopy.org/):"));
-            PaneTools.addGridRow(gp, 1, 0, "Enter OMERO URL", tf, tf);
+            GridPaneUtils.addGridRow(gp, 0, 0, "Enter OMERO URL", new Label("Enter an OMERO server URL to browse (e.g. http://idr.openmicroscopy.org/):"));
+            GridPaneUtils.addGridRow(gp, 1, 0, "Enter OMERO URL", tf, tf);
             var confirm = Dialogs.showConfirmDialog("Enter OMERO URL", gp);
             if (!confirm)
                 return null;
@@ -510,8 +511,10 @@ public class QPHRMRetrieveFromHRM {
             URI uri = new URI(host);
 
             // Clean the URI (in case it's a full path)
-            // TODO find a way to reuse a client if already exists and not to create a new one.
             URI uriServer = OmeroRawTools.getServerURI(uri);
+            OmeroRawClient client = OmeroRawClients.getClientFromServerURI(uriServer);
+            if(client != null)
+                return client;
            return OmeroRawClients.createClientAndLogin(uriServer);
 
         }catch(IOException | URISyntaxException e){
