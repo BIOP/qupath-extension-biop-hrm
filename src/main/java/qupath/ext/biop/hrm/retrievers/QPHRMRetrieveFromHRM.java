@@ -396,10 +396,10 @@ public class QPHRMRetrieveFromHRM {
      * @param qupath
      * @param imageServerBuilder
      * @param imageURI URI of the deconvolved image
-     * @param keyVals
      * @throws IOException
      */
-    protected static void toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI, Map<String, String> keyVals) throws IOException {
+    protected static List<ProjectImageEntry<BufferedImage>> toQuPath(QuPathGUI qupath, ImageServerBuilder<BufferedImage> imageServerBuilder, String imageURI)
+            throws IOException {
         List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
         Project<BufferedImage> project = qupath.getProject();
 
@@ -430,11 +430,11 @@ public class QPHRMRetrieveFromHRM {
         else
             support = ImageServers.getImageSupport(imageServerBuilder, uri, "");
 
+        List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
         if (support != null){
             List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = support.getBuilders();
 
             // Add everything in order first
-            List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
             for (var builder : builders) {
                 entries.add(project.addImage(builder));
             }
@@ -465,9 +465,6 @@ public class QPHRMRetrieveFromHRM {
                 } catch (Exception e) {
                     logger.warn("Exception adding " + entry, e);
                 }
-
-                // add metadata
-                keyVals.forEach((key, value)->entry.putMetadataValue(key,value));
             }
 
             // refresh the project
@@ -478,6 +475,8 @@ public class QPHRMRetrieveFromHRM {
             }
             qupath.refreshProject();
         }
+
+        return entries;
     }
 
     /**

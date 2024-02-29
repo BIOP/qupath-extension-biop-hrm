@@ -81,14 +81,19 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
         }
 
         // add all key-values independently of their parent namespace
-        Map<String,String> omeroKeyValues = new TreeMap<>();
+        Map<String,String> hrmKeyValues = new TreeMap<>();
         metadata.forEach((header,map)-> {
-            omeroKeyValues.putAll(map);
+            hrmKeyValues.putAll(map);
         });
 
         try {
             // add the image to QuPath project
-            QPHRMRetrieveFromHRM.toQuPath(qupath, null, imageURI, omeroKeyValues);
+            List<ProjectImageEntry<BufferedImage>> entries = QPHRMRetrieveFromHRM.toQuPath(qupath, null, imageURI);
+
+            // add metadata
+            for(ProjectImageEntry<BufferedImage> entry:entries)
+                hrmKeyValues.forEach(entry::putMetadataValue);
+
             return true;
         }catch(IOException e){
             Utils.errorLog(logger, "Image to QuPath", "An error occurred when trying to add image "+imageURI+" to QuPath project",e,false);

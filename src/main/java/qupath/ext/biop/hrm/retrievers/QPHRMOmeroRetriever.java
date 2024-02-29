@@ -2,20 +2,27 @@ package qupath.ext.biop.hrm.retrievers;
 
 import fr.igred.omero.annotations.FileAnnotationWrapper;
 import fr.igred.omero.annotations.MapAnnotationWrapper;
+import fr.igred.omero.annotations.TagAnnotationWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ImageWrapper;
 import omero.gateway.model.FileAnnotationData;
+import omero.gateway.model.TagAnnotationData;
 import omero.model.NamedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.biop.hrm.HRMConstants;
+import qupath.ext.biop.servers.omero.raw.browser.OmeroRawBrowserTools;
 import qupath.ext.biop.servers.omero.raw.client.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
+import qupath.ext.biop.servers.omero.raw.utils.OmeroRawScripting;
 import qupath.ext.biop.servers.omero.raw.utils.Utils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.projects.ProjectImageEntry;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,8 +57,14 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     /** OMERO id of the uploaded deconvolved image */
     private long imageId;
 
+    /** Image wrapper object */
+    private ImageWrapper imageWrapper;
+
     /** Image and restoration parameters of the deconvolution */
     private Map<String, Map<String, String>> metadata;
+
+    /** tags to upload */
+    private List<String> imageTags = new ArrayList<>();
 
     public QPHRMOmeroRetriever(){
 
@@ -80,6 +93,19 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
         }
 
         if(!imageRead || imagesWithinDataset.stream().noneMatch(e -> e.getName().equals(this.imageToSend.getName()))) {
+            // read raw image if exists
+            try{
+                ImageWrapper rawImage = imagesWithinDataset.stream().filter(e -> this.imageToSend.getName().contains(e.getName().split("\\.")[0])).findFirst().get();
+                this.imageTags = rawImage.getTags(this.client.getSimpleClient()).stream().map(TagAnnotationWrapper::getName).collect(Collectors.toList());
+                List<String> additionalRawTags = new ArrayList<>();
+                additionalRawTags.add(HRMConstants.HRM_TAG);
+                additionalRawTags.add(HRMConstants.RAW_FOLDER.toLowerCase());
+                sendTags(additionalRawTags, rawImage);
+            }catch (ServiceException | AccessException | ExecutionException e){
+                Utils.warnLog(logger, "Send back", "The raw image of '"+this.imageToSend.toString()+"' cannot be retrieved in dataset '"+dataset.getName()+"'", e, false);
+            }
+
+            // import image
             List<Long> ids;
             try{
                 ids = dataset.importImage(this.client.getSimpleClient(), this.imageToSend.toString());
@@ -88,14 +114,19 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
                 return false;
             }
 
+            // get image
             this.imageId = ids.get(0);
-            ImageWrapper img;
             try{
-                img = this.client.getSimpleClient().getImage(this.imageId);
+                this.imageWrapper = this.client.getSimpleClient().getImage(this.imageId);
             }catch(ServiceException | AccessException | ExecutionException e){
                 Utils.errorLog(logger, "Send back", "Cannot read image '"+this.imageId+"' from OMERO", e, false);
                 return false;
             }
+
+            // send tags
+            this.imageTags.add(HRMConstants.HRM_TAG);
+            this.imageTags.add(HRMConstants.DECONVOLVED_FOLDER.toLowerCase());
+            sendTags(this.imageTags, this.imageWrapper);
 
             // convert key value pairs to omero-compatible object NamedValue
             this.metadata.forEach((header,map)->{
@@ -111,7 +142,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
 
                 // send key-values on OMERO
                 try {
-                    img.link(this.client.getSimpleClient(), mapAnnotationWrapper);
+                    this.imageWrapper.link(this.client.getSimpleClient(), mapAnnotationWrapper);
                 }catch(ServiceException | AccessException | ExecutionException e){
                     Utils.errorLog(logger, "Send back", "Cannot attach metadata as key-values pairs to image '"+this.imageId+"'", e, false);
                 }
@@ -120,7 +151,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
             // add the logFile as attachment to the image
             if(this.logFile != null) {
                 try {
-                    img.addFile(this.client.getSimpleClient(), this.logFile);
+                    this.imageWrapper.addFile(this.client.getSimpleClient(), this.logFile);
                 } catch (ExecutionException | InterruptedException e) {
                     Utils.errorLog(logger, "Send back", "Cannot attach the log file to image '" + this.imageId + "'", e, false);
                 }
@@ -131,10 +162,51 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
             }
         } else {
             logger.warn("Existing images on OMERO : Image "+this.imageToSend.toString()+" already exists on OMERO. It is not uploaded");
-            ImageWrapper image = imagesWithinDataset.stream().filter(e -> e.getName().equals(this.imageToSend.getName())).collect(Collectors.toList()).get(0);
-            this.imageId = image.getId();
+            this.imageWrapper = imagesWithinDataset.stream().filter(e -> e.getName().equals(this.imageToSend.getName())).collect(Collectors.toList()).get(0);
+            this.imageId = this.imageWrapper.getId();
             return true;
         }
+    }
+
+    /**
+     * Check if tags are already existing / linked and add / link them to the image
+     *
+     * @param tags
+     * @param imageWrapper
+     * @return
+     */
+    private boolean sendTags(List<String> tags, ImageWrapper imageWrapper){
+        List<TagAnnotationWrapper> tagsToAdd = new ArrayList<>();
+        List<TagAnnotationWrapper> groupTags;
+        try {
+            groupTags= this.client.getSimpleClient().getTags();
+        }catch(ServiceException  | OMEROServerError e){
+            Utils.errorLog(logger,"OMERO - tags",
+                    "Cannot read tags from the current user '"+this.client.getSimpleClient().getUser().getUserName()+"'", e, true);
+            return false;
+        }
+
+        for(String tag:tags) {
+            if(tagsToAdd.stream().noneMatch(e-> e.getName().equalsIgnoreCase(tag))){
+                TagAnnotationWrapper newOmeroTagAnnotation;
+                List<TagAnnotationWrapper> matchedTags = groupTags.stream().filter(e -> e.getName().equalsIgnoreCase(tag)).collect(Collectors.toList());
+                if(matchedTags.isEmpty()){
+                    newOmeroTagAnnotation = new TagAnnotationWrapper(new TagAnnotationData(tag));
+                } else {
+                    newOmeroTagAnnotation = matchedTags.get(0);
+                }
+                // find if the requested tag already exists
+                tagsToAdd.add(newOmeroTagAnnotation);
+            }
+        }
+
+        try {
+            imageWrapper.link(this.client.getSimpleClient(), tagsToAdd.toArray(TagAnnotationWrapper[]::new));
+        }catch(ServiceException | AccessException | ExecutionException e){
+            Utils.errorLog(logger,"OMERO - tags", "Cannot add tags to the image '"+imageWrapper.getId()+"'", e, true);
+            return false;
+        }
+        return true;
     }
 
     //TODO ask Pete if there is a way to import an image in a qp project by scripting
@@ -148,14 +220,20 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
         OmeroRawImageServerBuilder omeroBuilder = new OmeroRawImageServerBuilder();
 
         // add all key-values independently of their parent namespace
-        Map<String,String> omeroKeyValues = new TreeMap<>();
+        Map<String,String> hrmKeyValues = new TreeMap<>();
         metadata.forEach((header,map)-> {
-            omeroKeyValues.putAll(map);
+            hrmKeyValues.putAll(map);
         });
 
         try {
             // add the current image to the QuPath project
-            QPHRMRetrieveFromHRM.toQuPath(qupath, omeroBuilder, imageURI, omeroKeyValues);
+            List<ProjectImageEntry<BufferedImage>> entries = QPHRMRetrieveFromHRM.toQuPath(qupath, omeroBuilder, imageURI);
+            for(ProjectImageEntry<BufferedImage> entry:entries) {
+                // add hrm KVPs
+                hrmKeyValues.forEach(entry::putMetadataValue);
+                // add tags
+                OmeroRawScripting.addTagsToQuPath(entry, this.imageTags, Utils.UpdatePolicy.UPDATE_KEYS, true);
+            }
             return true;
         }catch(IOException e){
             Utils.errorLog(logger, "Image to QuPath", "An error occurred when trying to add image \"+this.imageId+\" to QuPath project",e,false);
