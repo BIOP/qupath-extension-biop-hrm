@@ -1,6 +1,5 @@
 package qupath.ext.biop.hrm.retrievers;
 
-import fr.igred.omero.annotations.FileAnnotationWrapper;
 import fr.igred.omero.annotations.MapAnnotationWrapper;
 import fr.igred.omero.annotations.TagAnnotationWrapper;
 import fr.igred.omero.exception.AccessException;
@@ -8,13 +7,11 @@ import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ImageWrapper;
-import omero.gateway.model.FileAnnotationData;
 import omero.gateway.model.TagAnnotationData;
 import omero.model.NamedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.hrm.HRMConstants;
-import qupath.ext.biop.servers.omero.raw.browser.OmeroRawBrowserTools;
 import qupath.ext.biop.servers.omero.raw.client.OmeroRawClient;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
 import qupath.ext.biop.servers.omero.raw.utils.OmeroRawScripting;

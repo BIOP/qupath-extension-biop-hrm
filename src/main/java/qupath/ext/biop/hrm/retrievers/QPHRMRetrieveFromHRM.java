@@ -33,7 +33,6 @@ import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServers;
@@ -572,7 +571,7 @@ public class QPHRMRetrieveFromHRM {
         File[] fList = directory.listFiles();
         if(fList != null)
             for (File file : fList) {
-                if (file.isFile() &&  file.getName().endsWith(".ids") ) { // TODO change to .ids
+                if (file.isFile() &&  file.getName().endsWith(".ids") ) {
                     imageTypeMap.put(file, typeName);
                 } else if (file.isDirectory()) {
                     recursiveFileListing(file, typeName, imageTypeMap);
