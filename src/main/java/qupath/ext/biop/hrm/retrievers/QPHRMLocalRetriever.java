@@ -3,10 +3,13 @@ package qupath.ext.biop.hrm.retrievers;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.biop.hrm.HRMConstants;
 import qupath.ext.biop.servers.omero.raw.OmeroRawImageServerBuilder;
 import qupath.ext.biop.servers.omero.raw.utils.Utils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.scripting.QP;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -47,7 +50,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
             }
 
             // create the deconvolved folder
-            if (this.target.mkdir()){
+            if (this.target.mkdirs()){
                 File[] filesToCopy = this.imageToSend.getParentFile().listFiles();
                 String imageName = this.imageToSend.getName();
                 int index = imageName.lastIndexOf(".");
@@ -123,7 +126,7 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
                 if(!(image.getServerBuilder() instanceof OmeroRawImageServerBuilder)) {
                     double sim = similarity(image.getImageName(), this.rawName);
 
-                    if (sim > higherSimilarity) {
+                    if (sim > higherSimilarity && !image.getMetadataMap().containsKey(HRMConstants.DECONVOLVED_FOLDER.toLowerCase())) {
                         higherSimilarity = sim;
                         finalImage = image;
                     }
@@ -146,7 +149,13 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
                 }catch(IOException e){
                     logger.warn("Building Local target : Error when trying to get URI from image "+finalImage.getImageName());
                 }
-            }else logger.warn("Building Local target : No image available in your project. Cannot copy deconvolution results");
+            }else {
+                String parentFolder = QP.buildFilePath(QP.PROJECT_BASE_DIR) +  File.separator + "HRM Deconvolution";
+                String deconvolvedFolderPath = parentFolder +  File.separator + this.imageToSend.getName() + "_Deconvolved_" + this.hrmCode;
+                this.target = new File(deconvolvedFolderPath);
+                logger.warn("Building Local target : No image available in your project. Create a new folder at "+deconvolvedFolderPath);
+                return true;
+            }
         }
         return false;
     }
