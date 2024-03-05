@@ -116,17 +116,15 @@ public class QPHRMLocalRetriever implements QPHRMRetriever {
     public boolean buildTarget() {
         if(this.imageToSend != null && this.imageToSend.exists()) {
             // list all available images
-            // TODO find a way to pass qupathGui in argument
-            List<ProjectImageEntry<BufferedImage>> imageList = QuPathGUI.getInstance().getProject().getImageList();
+            List<ProjectImageEntry<BufferedImage>> imageList = QPEx.getQuPath().getProject().getImageList();
 
             // get the closest image to the hrm image name from the current project
             ProjectImageEntry<BufferedImage> finalImage = null;
             double higherSimilarity = 0;
             for(ProjectImageEntry<BufferedImage> image :imageList){
-                if(!(image.getServerBuilder() instanceof OmeroRawImageServerBuilder)) {
+                if(!(image.getServerBuilder().toString().contains(OmeroRawImageServerBuilder.class.getName()))) {
                     double sim = similarity(image.getImageName(), this.rawName);
-
-                    if (sim > higherSimilarity && !image.getMetadataMap().containsKey(HRMConstants.DECONVOLVED_FOLDER.toLowerCase())) {
+                    if (sim > 0.7 && sim > higherSimilarity && !image.getMetadataMap().containsKey(HRMConstants.DECONVOLVED_FOLDER.toLowerCase())) {
                         higherSimilarity = sim;
                         finalImage = image;
                     }
