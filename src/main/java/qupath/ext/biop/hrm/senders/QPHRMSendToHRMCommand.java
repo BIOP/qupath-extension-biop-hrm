@@ -75,7 +75,7 @@ public class QPHRMSendToHRMCommand implements Runnable {
         // set the root folder according to the OS
         String rootFolder;
         if(System.getProperty("os.name").toLowerCase().startsWith("w"))
-            rootFolder = "\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
+            rootFolder = "\\\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
         else
             rootFolder = "smb://sv-nas1.rcp.epfl.ch/ptbiop-raw/HRM-Share";
 

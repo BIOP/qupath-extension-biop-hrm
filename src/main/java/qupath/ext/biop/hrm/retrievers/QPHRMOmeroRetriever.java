@@ -254,7 +254,7 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
     @Override
     public boolean buildTarget(){
         if(this.imageToSend != null && this.imageToSend.exists()) {
-            String omeroDataset = this.imageToSend.getParentFile().getName();
+            String omeroDataset = this.imageToSend.getParentFile().getParentFile().getName();
 
             // if orphaned image
             if(omeroDataset.equals("None")){
