@@ -123,11 +123,15 @@ public class QPHRMRetrieveFromHRMCommand implements Runnable {
         }
         defaultUsername.set(username);
 
-        // set the root folder
-        String root = "C:\\Users\\dornier\\Downloads";//"\\\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
+        // set the root folder according to the OS
+        String rootFolder;
+        if(System.getProperty("os.name").toLowerCase().startsWith("w"))
+            rootFolder = "\\sv-nas1.rcp.epfl.ch\\ptbiop-raw\\HRM-Share";//"C:\\Users\\dornier\\Downloads";
+        else
+            rootFolder = "smb://sv-nas1.rcp.epfl.ch/ptbiop-raw/HRM-Share";
 
         // retrieve images
-        QPHRMRetrieveFromHRM.retrieve(qupath, root, username, deleteDeconvolvedOnHRM, deleteRawOnHRM, host);
+        QPHRMRetrieveFromHRM.retrieve(qupath, rootFolder, username, deleteDeconvolvedOnHRM, deleteRawOnHRM, host);
     }
 
 }
