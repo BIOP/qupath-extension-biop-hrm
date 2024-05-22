@@ -98,7 +98,8 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
                 List<String> additionalRawTags = new ArrayList<>();
                 additionalRawTags.add(HRMConstants.HRM_TAG);
                 additionalRawTags.add(HRMConstants.RAW_FOLDER.toLowerCase());
-                sendTags(additionalRawTags, rawImage);
+                if(!sendTags(additionalRawTags, rawImage))
+                    Utils.errorLog(logger, "Send tags", "Cannot send tags to raw image '"+rawImage.getId()+"'", false);
             }catch (ServiceException | AccessException | ExecutionException | NoSuchElementException e){
                 Utils.warnLog(logger, "Send back", "The raw image of '"+this.imageToSend.toString()+"' cannot be retrieved in dataset '"+dataset.getName()+"'", e, false);
             }
@@ -124,7 +125,8 @@ public class QPHRMOmeroRetriever implements QPHRMRetriever {
             // send tags
             this.imageTags.add(HRMConstants.HRM_TAG);
             this.imageTags.add(HRMConstants.DECONVOLVED_FOLDER.toLowerCase());
-            sendTags(this.imageTags, this.imageWrapper);
+            if(!sendTags(this.imageTags, this.imageWrapper))
+                Utils.errorLog(logger, "Send tags", "Cannot send tags to deconvolved image '"+this.imageId+"'", false);
 
             // convert key value pairs to omero-compatible object NamedValue
             this.metadata.forEach((header,map)->{
