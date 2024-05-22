@@ -11,7 +11,7 @@ ext.qupathVersion = gradle.ext.qupathVersion
 archivesBaseName = 'qupath-extension-biop-hrm'
 description = "QuPath extension to send/retrieve data from HRM server."
 group = "ch.epfl.biop"
-version = "0.2.1-SNAPSHOT"
+version = "1.0.0"
 
 repositories {
   maven{
